@@ -219,7 +219,13 @@ function depManager() {
           } finally { this.loading--; }
         }, 0);
       }, 50);
-      const dUpdateURL        = debounce((k, v) => this.updateURL(k, v), 300);
+      const dUpdateURL = (() => {
+        const timers = {};
+        return (k, v) => {
+          clearTimeout(timers[k]);
+          timers[k] = setTimeout(() => this.updateURL(k, v), 300);
+        };
+      })();
 
       // Sync URL with state. URL writes are always debounced; expensive
       // graph operations are debounced too. Cheap DOM-only updates (title,
