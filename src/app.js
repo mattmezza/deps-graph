@@ -79,6 +79,8 @@ function depManager() {
     impactSelectedEdge: '',
     impactResult: [],
     edgeList: [],
+    nodeCount: 0,
+    edgeCount: 0,
     showLabels: params.get('labels') === '1',
     filterBetweenSrc: '',
     filterBetweenSink: '',
@@ -726,6 +728,8 @@ function depManager() {
       this.applyEdgeRules();
       this.applyEdgeStyleRules();
       this.buildEdgeList();
+      this.nodeCount = this.cy.nodes().length;
+      this.edgeCount = this.cy.edges().length;
     },
 
     repositionNodes() {

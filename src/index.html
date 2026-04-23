@@ -141,9 +141,13 @@
                         placeholder='"Auth"-Login->"API" status=active'
                         class="w-full h-64 p-3 font-mono bg-dark-bg text-s-text text-sm border border-dark-border focus:outline-brand-primary"
                     ></textarea>
-                    <button @click="formatConfig" class="mb-2 w-full bg-brand-primary hover:bg-brand-primary/80 text-brand-primary-text text-[10px] font-bold py-1 px-2 uppercase tracking-tighter transition-colors border border-dark-border">
-                        Auto-format
-                    </button>
+                    <p class="text-[10px] text-s-dim mt-1.5">All data stays in your browser. Nothing is sent to any server — the URL encodes everything locally. Be mindful who you share links with, as they contain your full input.</p>
+                    <div class="mt-2 flex items-center justify-between">
+                        <button @click="formatConfig" class="bg-brand-primary hover:bg-brand-primary/80 text-brand-primary-text text-[10px] font-bold py-1 px-2 uppercase tracking-tighter transition-colors border border-dark-border">
+                            Auto-format
+                        </button>
+                        <span class="text-[10px] text-s-dim" x-text="nodeCount + ' nodes / ' + edgeCount + ' edges'"></span>
+                    </div>
                 </div>
 
                 <div class="mt-4 pt-4 border-t border-dark-border flex items-center justify-between">
@@ -574,6 +578,9 @@
 
                 <h3 class="font-bold text-s-muted uppercase text-[11px] pt-2">Sharing</h3>
                 <p>Everything is encoded in the URL. Use the <b>Share</b> button to copy a link, optionally excluding edge rules or theme.</p>
+
+                <h3 class="font-bold text-s-muted uppercase text-[11px] pt-2">Privacy</h3>
+                <p>All data stays in your browser. Nothing is sent to any server — the URL encodes everything locally. Be mindful who you share links with, as they contain your full input.</p>
             </div>
 
             <div class="mt-6 pt-4 border-t border-dark-border text-[10px] text-s-dim">
