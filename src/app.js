@@ -377,7 +377,7 @@ function depManager() {
       const lines = this.rawConfig.split('\n').filter((l) => l.trim());
       // Match: <src> -...- <label> -...-> <target> [optional trailing attrs]
       // src/label/target may be optionally double-quoted (quoted strings can contain spaces/dashes)
-      const regex = /^\s*(?:"([^"]+)"|([^\s"-][^\s-]*))\s*-+\s*(?:"([^"]+)"|([^\s"-][^\s-]*))\s*-+>\s*(?:"([^"]+)"|(\S+?))\s*(.*)$/;
+      const regex = /^\s*(?:"([^"]+)"|([^\s"-][^\s-]*))\s*-+\s*(?:"([^"]+)"|([^\s"-][^\s-]*))\s*-+>\s*(?:"([^"]+)"|(\S+))\s*(.*)$/;
 
       return lines.map((line) => {
         const trimmed = line.trim();

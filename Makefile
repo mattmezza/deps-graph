@@ -50,6 +50,13 @@ dev: node_modules
 
 # ---------- build ----------
 build: build-css build-js build-html
+	@# Cache-bust: rename assets with content hash and rewrite references in HTML.
+	@CSS_HASH=$$(md5sum $(DIST_DIR)/styles.css | cut -c1-8); \
+	 JS_HASH=$$(md5sum $(DIST_DIR)/app.js | cut -c1-8); \
+	 mv $(DIST_DIR)/styles.css $(DIST_DIR)/styles.$$CSS_HASH.css; \
+	 mv $(DIST_DIR)/app.js $(DIST_DIR)/app.$$JS_HASH.js; \
+	 sed -i "s|./styles.css|./styles.$$CSS_HASH.css|g" $(DIST_DIR)/index.html; \
+	 sed -i "s|./app.js|./app.$$JS_HASH.js|g" $(DIST_DIR)/index.html
 	@echo ">> build complete -> $(DIST_DIR)/"
 
 $(DIST_DIR):
