@@ -145,7 +145,7 @@ function depManager() {
     searchQuery: '',
     searchResults: [],
     showBetweenOpen: false,
-    loading: false,
+    loading: 0,
 
     // Edge color rules: [{attr, op:'is'|'contains', value, color}]
     _rulesParam: params.get('rules') || '',
@@ -191,32 +191,32 @@ function depManager() {
 
       const dParseAndRender   = debounce(() => this.parseAndRender(), 350);
       const dRunLayout        = debounce(() => {
-        this.loading = true;
+        this.loading++;
         setTimeout(() => {
-          try { this.runLayout(); } finally { this.loading = false; }
+          try { this.runLayout(); } finally { this.loading--; }
         }, 0);
       }, 250);
       const dRefreshGraphStyle = debounce(() => {
-        this.loading = true;
+        this.loading++;
         setTimeout(() => {
-          try { this.refreshGraphStyle(); } finally { this.loading = false; }
+          try { this.refreshGraphStyle(); } finally { this.loading--; }
         }, 0);
       }, 100);
       const dApplyTheme       = debounce(() => this.applyTheme(), 50);
       const dNodeSizeStyle    = debounce((v) => {
-        this.loading = true;
+        this.loading++;
         setTimeout(() => {
           try {
             this.cy.style().selector('node').style({ width: v + 'px', height: v + 'px' }).update();
-          } finally { this.loading = false; }
+          } finally { this.loading--; }
         }, 0);
       }, 100);
       const dNodeShapeStyle   = debounce((v) => {
-        this.loading = true;
+        this.loading++;
         setTimeout(() => {
           try {
             this.cy.style().selector('node').style({ shape: v }).update();
-          } finally { this.loading = false; }
+          } finally { this.loading--; }
         }, 0);
       }, 50);
       const dUpdateURL        = debounce((k, v) => this.updateURL(k, v), 300);
@@ -411,7 +411,7 @@ function depManager() {
       document.head.appendChild(link);
       document.documentElement.style.setProperty('--graph-font', this.fontFamilyCss());
       if (this.cy) {
-        this.loading = true;
+        this.loading++;
         setTimeout(() => {
           try {
             this.cy.style()
@@ -419,7 +419,7 @@ function depManager() {
               .selector('edge').style({ 'font-family': this.fontFamilyCss() })
               .update();
           } finally {
-            this.loading = false;
+            this.loading--;
           }
         }, 0);
       }
@@ -735,7 +735,7 @@ function depManager() {
     },
 
     parseAndRender() {
-      this.loading = true;
+      this.loading++;
       setTimeout(() => {
         try {
           const data = this.parseConfig();
@@ -746,7 +746,6 @@ function depManager() {
             `${a.src}\t${a.label}\t${a.target}\t${a.attrsRaw}`
           ).join('\n') + '\n_curve=' + this.curveDistance;
           if (fingerprint === this._lastFingerprint) {
-            this.loading = false;
             return;
           }
           this._lastFingerprint = fingerprint;
@@ -827,19 +826,19 @@ function depManager() {
         } catch (e) {
           console.error(e);
         } finally {
-          this.loading = false;
+          this.loading--;
         }
       }, 0);
     },
 
     repositionNodes() {
       if (!this.cy) return;
-      this.loading = true;
+      this.loading++;
       setTimeout(() => {
         try {
           this.runLayout({ initializeAll: true });
         } finally {
-          this.loading = false;
+          this.loading--;
         }
       }, 0);
     },
@@ -990,7 +989,7 @@ function depManager() {
     },
 
     formatConfig() {
-      this.loading = true;
+      this.loading++;
       setTimeout(() => {
         try {
           const data = this.parseConfig();
@@ -1015,7 +1014,7 @@ function depManager() {
             return `${srcPart}---${labelPart}-->"${item.target}"${tail}`;
           }).join('\n');
         } finally {
-          this.loading = false;
+          this.loading--;
         }
       }, 0);
     },
