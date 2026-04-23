@@ -283,8 +283,9 @@
                                 <div class="flex items-center gap-2">
                                     <select x-model="rule.style" @change="applyEdgeStyleRules"
                                             class="p-1 bg-dark-panel border border-dark-border text-s-text text-xs font-mono">
+                                        <option value="" disabled :selected="!rule.style">— Select —</option>
                                         <template x-for="opt in edgeStyleOptions" :key="opt.value">
-                                            <option :value="opt.value" x-text="opt.label"></option>
+                                            <option :value="opt.value" :selected="rule.style === opt.value" x-text="opt.label"></option>
                                         </template>
                                     </select>
                                     <input type="text" x-model="rule.attr" placeholder="attribute"
