@@ -20,7 +20,13 @@ function depManager() {
     edgeQuerySink: '',
     edgeQueryResult: [],
     edgeQueryRan: false,
+    impactSelectedEdge: '',
+    impactResult: [],
+    edgeList: [],
     showLabels: params.get('labels') === '1',
+    filterBetweenSrc: '',
+    filterBetweenSink: '',
+    filterBetweenActive: false,
     cy: null,
 
     // Header
@@ -368,19 +374,27 @@ function depManager() {
               'z-index': 999,
             },
           },
+          {
+            selector: '.filtered-out',
+            style: {
+              opacity: 0.08,
+              'events': 'no',
+            },
+          },
         ],
         layout: { name: 'preset' },
       });
     },
 
     parseConfig() {
-      const lines = this.rawConfig.split('\n').filter((l) => l.trim());
+      const lines = this.rawConfig.split('\n');
       // Match: <src> -...- <label> -...-> <target> [optional trailing attrs]
       // src/label/target may be optionally double-quoted (quoted strings can contain spaces/dashes)
       const regex = /^\s*(?:"([^"]+)"|([^\s"-][^\s-]*))\s*-+\s*(?:"([^"]+)"|([^\s"-][^\s-]*))\s*-+>\s*(?:"([^"]+)"|(\S+))\s*(.*)$/;
 
       return lines.map((line) => {
         const trimmed = line.trim();
+        if (!trimmed) return { type: 'blank' };
         if (trimmed.startsWith('#') || trimmed.startsWith('//')) {
           return { type: 'comment', comment: line };
         }
@@ -458,7 +472,7 @@ function depManager() {
 
       this.runLayout();
       this.applyEdgeRules();
-
+      this.buildEdgeList();
     },
 
     // Layout that pushes high-degree (hub) nodes further apart.
@@ -526,6 +540,7 @@ function depManager() {
       const maxLabel = Math.max(...adjacencies.map((d) => d.label.length), 0);
 
       this.rawConfig = data.map((item) => {
+        if (item.type === 'blank') return '';
         if (item.type === 'comment') return item.comment;
 
         const srcPart = `"${item.src}"`.padEnd(maxSrc + 2, '-');
@@ -663,6 +678,63 @@ function depManager() {
     clearHighlight() {
       if (!this.cy) return;
       this.cy.elements().removeClass('hl');
+    },
+
+    applyFilterBetween() {
+      if (!this.cy) return;
+      const src = this.filterBetweenSrc.trim();
+      const sink = this.filterBetweenSink.trim();
+      if (!src || !sink) {
+        this.clearFilterBetween();
+        return;
+      }
+      const srcNode = this.cy.getElementById(src);
+      const sinkNode = this.cy.getElementById(sink);
+      if (srcNode.empty() || sinkNode.empty()) {
+        this.clearFilterBetween();
+        return;
+      }
+      // Elements on any path from src to sink.
+      const forward = srcNode.union(srcNode.successors());
+      const backward = sinkNode.union(sinkNode.predecessors());
+      const between = forward.intersection(backward);
+      this.cy.elements().addClass('filtered-out');
+      between.removeClass('filtered-out');
+      this.filterBetweenActive = true;
+    },
+
+    clearFilterBetween() {
+      if (!this.cy) return;
+      this.cy.elements().removeClass('filtered-out');
+      this.filterBetweenActive = false;
+    },
+
+    // ---------- impact analysis ----------
+    buildEdgeList() {
+      if (!this.cy) { this.edgeList = []; return; }
+      this.edgeList = this.cy.edges().map((e) => ({
+        id: e.id(),
+        label: e.data('label'),
+        source: e.data('source'),
+        target: e.data('target'),
+        display: `${e.data('source')}-${e.data('label')}->${e.data('target')}`,
+      }));
+    },
+
+    computeImpact() {
+      if (!this.cy || !this.impactSelectedEdge) { this.impactResult = []; return; }
+      const selected = this.edgeList.find((e) => e.id === this.impactSelectedEdge);
+      if (!selected) { this.impactResult = []; return; }
+      const label = selected.label;
+      // All edges sharing the same label.
+      const matchingEdges = this.cy.edges().filter((e) => e.data('label') === label);
+      // Impacted nodes: all nodes connected to those edges.
+      const impactedNodes = new Set();
+      matchingEdges.forEach((e) => {
+        impactedNodes.add(e.data('source'));
+        impactedNodes.add(e.data('target'));
+      });
+      this.impactResult = Array.from(impactedNodes);
     },
 
     zoomToNodes(ids) {
