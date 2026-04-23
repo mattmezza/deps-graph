@@ -133,6 +133,7 @@ function depManager() {
     exportFormat: localStorage.getItem('exportFormat') || 'png',
 
     // Share options
+    shareIncludeConfig: true,
     shareIncludeEdgeColors: true,
     shareIncludeEdgeStyles: true,
     shareIncludeTheme: true,
@@ -1156,6 +1157,7 @@ function depManager() {
     async copyShareLink() {
       const url = new URL(window.location);
       // Remove params the user chose to exclude.
+      if (!this.shareIncludeConfig) url.searchParams.delete('config');
       if (!this.shareIncludeEdgeColors) url.searchParams.delete('rules');
       if (!this.shareIncludeEdgeStyles) url.searchParams.delete('styleRules');
       if (!this.shareIncludeTheme) {
