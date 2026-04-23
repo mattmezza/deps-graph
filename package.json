@@ -1,0 +1,20 @@
+{
+  "name": "deps-graph",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dependency mesh visualizer (Cytoscape + Alpine + Tailwind v4).",
+  "scripts": {
+    "css:dev": "tailwindcss -i ./src/input.css -o ./src/styles.css --watch",
+    "css:build": "tailwindcss -i ./src/input.css -o ./dist/styles.css --minify",
+    "js:build": "esbuild src/app.js --bundle --minify --target=es2020 --outfile=dist/app.js",
+    "serve": "live-server src --port=3000 --no-browser --quiet",
+    "dev": "npm-run-all --parallel css:dev serve"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.0.0",
+    "esbuild": "^0.21.0",
+    "live-server": "^1.2.2",
+    "npm-run-all": "^4.1.5",
+    "tailwindcss": "^4.0.0"
+  }
+}
