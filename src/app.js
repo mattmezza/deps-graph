@@ -78,7 +78,6 @@ function depManager() {
     edgeQueryRan: false,
     impactSelectedEdge: '',
     impactResult: [],
-    extendedImpactResult: [],
     edgeList: [],
     showLabels: params.get('labels') === '1',
     filterBetweenSrc: '',
@@ -974,37 +973,41 @@ function depManager() {
     computeImpact() {
       if (!this.cy || !this.impactSelectedEdge) {
         this.impactResult = [];
-        this.extendedImpactResult = [];
         return;
       }
-      const selected = this.edgeList.find((e) => e.id === this.impactSelectedEdge);
-      if (!selected) {
+      const edge = this.cy.getElementById(this.impactSelectedEdge);
+      if (edge.empty()) {
         this.impactResult = [];
-        this.extendedImpactResult = [];
         return;
       }
-      const label = selected.label;
-      // All edges sharing the same label.
-      const matchingEdges = this.cy.edges().filter((e) => e.data('label') === label);
-      // Impacted nodes: all nodes connected to those edges.
-      const impactedNodes = new Set();
-      matchingEdges.forEach((e) => {
-        impactedNodes.add(e.data('source'));
-        impactedNodes.add(e.data('target'));
-      });
-      this.impactResult = Array.from(impactedNodes);
+      // The source of the edge directly depends on the target.
+      // BFS upstream from source: predecessors at each hop get increasing degree.
+      const sourceId = edge.data('source');
+      const result = []; // [{id, degree}]
+      const visited = new Set();
+      let frontier = [sourceId];
+      let degree = 1;
 
-      // Extended impact: impacted nodes + all their downstream (predecessors)
-      // recursively. "Downstream of N" = things that depend on N.
-      const extended = new Set(impactedNodes);
-      impactedNodes.forEach((id) => {
-        const node = this.cy.getElementById(id);
-        if (!node.empty()) {
-          node.predecessors('node').forEach((n) => extended.add(n.id()));
+      while (frontier.length) {
+        const nextFrontier = [];
+        for (const id of frontier) {
+          if (visited.has(id)) continue;
+          visited.add(id);
+          result.push({ id, degree });
+          // Find predecessors: nodes that depend on this node (incoming edges).
+          const node = this.cy.getElementById(id);
+          if (!node.empty()) {
+            node.incomers('edge').forEach((e) => {
+              const src = e.data('source');
+              if (!visited.has(src)) nextFrontier.push(src);
+            });
+          }
         }
-      });
-      // Remove the direct impacted nodes to show only the extension.
-      this.extendedImpactResult = Array.from(extended).filter((id) => !impactedNodes.has(id));
+        degree++;
+        frontier = nextFrontier;
+      }
+
+      this.impactResult = result;
     },
 
     zoomToNodes(ids) {

@@ -304,7 +304,7 @@
 
                 <section class="mb-8">
                     <h3 class="text-brand-primary font-bold border-b-2 border-brand-accent mb-4 pb-1 uppercase">Impact</h3>
-                    <p class="text-[10px] text-s-muted mb-2">Select an edge — shows all nodes connected by edges sharing the same label.</p>
+                    <p class="text-[10px] text-s-muted mb-2">Select an edge — shows all nodes impacted if that dependency breaks, with degree of separation.</p>
                     <select x-model="impactSelectedEdge"
                             @change="computeImpact()"
                             class="w-full mb-2 p-2 bg-dark-bg border border-dark-border text-s-text text-xs font-mono">
@@ -317,28 +317,14 @@
                     <div x-show="impactResult.length" class="mt-3 p-3 bg-dark-bg border border-dark-border">
                         <p class="text-[10px] font-bold mb-2 uppercase text-s-muted" x-text="'Impacted nodes (' + impactResult.length + ')'"></p>
                         <div class="flex flex-wrap gap-1">
-                            <template x-for="id in impactResult" :key="id">
+                            <template x-for="item in impactResult" :key="item.id">
                                 <span
                                     class="text-xs font-mono bg-dark-panel border border-dark-border px-2 py-1 cursor-pointer hover:border-brand-accent"
-                                    @mouseenter="highlightNodes([id])"
+                                    @mouseenter="highlightNodes([item.id])"
                                     @mouseleave="clearHighlight()"
-                                    @click="zoomToNodes([id])"
-                                    x-text="id"></span>
-                            </template>
-                        </div>
-                    </div>
-
-                    <div x-show="extendedImpactResult.length" class="mt-3 p-3 bg-dark-bg border border-dark-border">
-                        <p class="text-[10px] font-bold mb-2 uppercase text-s-muted" x-text="'Extended impact (' + extendedImpactResult.length + ')'"></p>
-                        <p class="text-[10px] text-s-muted mb-2">Additional nodes downstream of the impacted set.</p>
-                        <div class="flex flex-wrap gap-1">
-                            <template x-for="id in extendedImpactResult" :key="id">
-                                <span
-                                    class="text-xs font-mono bg-dark-panel border border-dark-border px-2 py-1 cursor-pointer hover:border-brand-accent"
-                                    @mouseenter="highlightNodes([id])"
-                                    @mouseleave="clearHighlight()"
-                                    @click="zoomToNodes([id])"
-                                    x-text="id"></span>
+                                    @click="zoomToNodes([item.id])">
+                                    <span x-text="item.id"></span><sub class="text-brand-accent text-[9px]" x-text="item.degree"></sub>
+                                </span>
                             </template>
                         </div>
                     </div>
