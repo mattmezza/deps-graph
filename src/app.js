@@ -125,6 +125,12 @@ function depManager() {
     isFullscreen: false,
     exportFormat: localStorage.getItem('exportFormat') || 'png',
 
+    // Share options
+    shareIncludeEdgeColors: true,
+    shareIncludeEdgeStyles: true,
+    shareIncludeTheme: true,
+    shareCopied: false,
+
     // Edge color rules: [{attr, op:'is'|'contains', value, color}]
     _rulesParam: params.get('rules') || '',
     edgeRules: [],
@@ -1072,6 +1078,23 @@ function depManager() {
       link.href = dataUrl;
       link.download = filename;
       link.click();
+    },
+
+    async copyShareLink() {
+      const url = new URL(window.location);
+      // Remove params the user chose to exclude.
+      if (!this.shareIncludeEdgeColors) url.searchParams.delete('rules');
+      if (!this.shareIncludeEdgeStyles) url.searchParams.delete('styleRules');
+      if (!this.shareIncludeTheme) {
+        url.searchParams.delete('main');
+        url.searchParams.delete('accent');
+        url.searchParams.delete('edge');
+        url.searchParams.delete('mainText');
+        url.searchParams.delete('accentText');
+      }
+      await navigator.clipboard.writeText(url.toString());
+      this.shareCopied = true;
+      setTimeout(() => { this.shareCopied = false; }, 2000);
     },
   };
 }
