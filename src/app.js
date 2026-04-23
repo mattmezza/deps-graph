@@ -730,18 +730,20 @@ function depManager() {
 
           // Restore saved positions for existing nodes.
           let hasNewNodes = false;
+          const newNodeIds = [];
           this.cy.nodes().forEach((n) => {
             const saved = savedPositions[n.id()];
             if (saved) {
               n.position(saved);
             } else {
               hasNewNodes = true;
+              newNodeIds.push(n.id());
             }
           });
 
           // Only run layout if there are new nodes without positions.
           if (hasNewNodes || !Object.keys(savedPositions).length) {
-            this.runLayout();
+            this.runLayout({ newNodeIds });
           }
           this.applyEdgeRules();
           this.applyEdgeStyleRules();
@@ -761,7 +763,7 @@ function depManager() {
       this.loading = true;
       setTimeout(() => {
         try {
-          this.runLayout();
+          this.runLayout({ initializeAll: true });
         } finally {
           this.loading = false;
         }
@@ -779,15 +781,15 @@ function depManager() {
     //    and the post-layout fit doesn't squash the result.
     //  - We also use deterministic initial positions based on node ID hashes
     //    so the layout is reproducible across renders.
-    runLayout() {
+    runLayout(options = {}) {
       if (!this.cy) return;
       const spread = parseFloat(this.hubSpread);
       const s = isFinite(spread) ? Math.max(0, spread) : 0;
       const n = Math.max(1, this.cy.nodes().length);
 
       // Base canvas size scales with node count; spread multiplies it.
-      const baseSide = 600 + n * 60;
-      const side = baseSide * (1 + s * 0.6);
+      const baseSide = 800 + n * 80;
+      const side = baseSide * (1 + s * 0.8);
 
       // Deterministic hash for initial positions (avoids random layout on every render).
       const hashStr = (str) => {
@@ -798,26 +800,34 @@ function depManager() {
         return h;
       };
 
-      // Place nodes deterministically before layout starts.
-      this.cy.nodes().forEach((node) => {
+      const initNode = (node) => {
         const h = hashStr(node.id());
         const x = ((h & 0xFFFF) / 0xFFFF) * side;
         const y = (((h >>> 16) & 0xFFFF) / 0xFFFF) * side;
         node.position({ x, y });
-      });
+      };
+
+      if (options.initializeAll) {
+        this.cy.nodes().forEach(initNode);
+      } else if (options.newNodeIds && options.newNodeIds.length > 0) {
+        options.newNodeIds.forEach((id) => {
+          const node = this.cy.getElementById(id);
+          if (!node.empty()) initNode(node);
+        });
+      }
 
       // Per-node repulsion: hubs get exponentially more repulsion than leaves.
       const repulsion = (node) => {
         const deg = Math.max(1, node.degree());
-        // s=0 -> all 4096; s=3 -> deg^1.5 multiplier; s=10 -> deg^5
-        return 4096 * Math.pow(deg, 0.5 * s);
+        // s=0 -> all 16384; s=3 -> deg^2.1 multiplier; s=10 -> deg^7
+        return 16384 * Math.pow(deg, 0.7 * Math.max(0.5, s));
       };
 
       // Edge length grows with combined endpoint degree (so hub-hub edges
       // are longer than leaf-leaf), and overall scale grows with spread.
       const edgeLen = (edge) => {
         const d = Math.max(2, edge.source().degree() + edge.target().degree());
-        return 60 * (1 + s * 0.4) * Math.pow(d / 2, 0.3 * s);
+        return 100 * (1 + s * 0.6) * Math.pow(d / 2, 0.5 * Math.max(0.5, s));
       };
 
       this.cy.layout({
@@ -827,9 +837,8 @@ function depManager() {
         padding: 40,
         randomize: false,
         boundingBox: { x1: 0, y1: 0, w: side, h: side },
-        componentSpacing: 100 + s * 50,
+        componentSpacing: 100 + s * 100,
         nodeRepulsion: repulsion,
-        nodeOverlap: 30,
         idealEdgeLength: edgeLen,
         edgeElasticity: 50,
         gravity: Math.max(0.05, 0.4 - s * 0.05),
@@ -839,6 +848,71 @@ function depManager() {
         coolingFactor: 0.97,
         minTemp: 1.0,
       }).run();
+      this.spreadHubs();
+      this.removeNodeOverlaps();
+    },
+
+    spreadHubs(maxIter = 100) {
+      if (!this.cy) return;
+      const size = parseFloat(this.nodeSize) || 35;
+      const nodes = this.cy.nodes();
+      const len = nodes.length;
+      for (let iter = 0; iter < maxIter; iter++) {
+        let moved = false;
+        for (let i = 0; i < len; i++) {
+          const n1 = nodes[i];
+          const deg1 = n1.degree();
+          for (let j = i + 1; j < len; j++) {
+            const n2 = nodes[j];
+            const deg2 = n2.degree();
+            const totalDeg = deg1 + deg2;
+            if (totalDeg < 4) continue; // low-degree pairs need no extra room
+            const dx = n2.position('x') - n1.position('x');
+            const dy = n2.position('y') - n1.position('y');
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            // Minimum distance scales with combined degree so hubs get plenty of clearance.
+            const minDist = size + 40 + totalDeg * 8;
+            if (dist < minDist) {
+              const push = (minDist - dist) * 0.35;
+              const nx = dx / dist;
+              const ny = dy / dist;
+              n1.shift({ x: -nx * push, y: -ny * push });
+              n2.shift({ x: nx * push, y: ny * push });
+              moved = true;
+            }
+          }
+        }
+        if (!moved) break;
+      }
+    },
+
+    removeNodeOverlaps(padding = 15, maxIter = 100) {
+      if (!this.cy) return;
+      const size = parseFloat(this.nodeSize) || 35;
+      const minDist = size + padding;
+      const nodes = this.cy.nodes();
+      const len = nodes.length;
+      for (let iter = 0; iter < maxIter; iter++) {
+        let moved = false;
+        for (let i = 0; i < len; i++) {
+          const n1 = nodes[i];
+          for (let j = i + 1; j < len; j++) {
+            const n2 = nodes[j];
+            const dx = n2.position('x') - n1.position('x');
+            const dy = n2.position('y') - n1.position('y');
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            if (dist < minDist) {
+              const overlap = (minDist - dist) / 2;
+              const nx = dx / dist;
+              const ny = dy / dist;
+              n1.shift({ x: -nx * overlap, y: -ny * overlap });
+              n2.shift({ x: nx * overlap, y: ny * overlap });
+              moved = true;
+            }
+          }
+        }
+        if (!moved) break;
+      }
     },
 
     formatConfig() {
