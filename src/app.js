@@ -191,33 +191,21 @@ function depManager() {
 
       const dParseAndRender   = debounce(() => this.parseAndRender(), 350);
       const dRunLayout        = debounce(() => {
-        this.loading++;
-        setTimeout(() => {
-          try { this.runLayout(); } finally { this.loading--; }
-        }, 0);
+        this.withSpinner(() => this.runLayout());
       }, 250);
       const dRefreshGraphStyle = debounce(() => {
-        this.loading++;
-        setTimeout(() => {
-          try { this.refreshGraphStyle(); } finally { this.loading--; }
-        }, 0);
+        this.withSpinner(() => this.refreshGraphStyle());
       }, 100);
       const dApplyTheme       = debounce(() => this.applyTheme(), 50);
       const dNodeSizeStyle    = debounce((v) => {
-        this.loading++;
-        setTimeout(() => {
-          try {
-            this.cy.style().selector('node').style({ width: v + 'px', height: v + 'px' }).update();
-          } finally { this.loading--; }
-        }, 0);
+        this.withSpinner(() => {
+          this.cy.style().selector('node').style({ width: v + 'px', height: v + 'px' }).update();
+        });
       }, 100);
       const dNodeShapeStyle   = debounce((v) => {
-        this.loading++;
-        setTimeout(() => {
-          try {
-            this.cy.style().selector('node').style({ shape: v }).update();
-          } finally { this.loading--; }
-        }, 0);
+        this.withSpinner(() => {
+          this.cy.style().selector('node').style({ shape: v }).update();
+        });
       }, 50);
       const dUpdateURL = (() => {
         const timers = {};
@@ -273,6 +261,16 @@ function depManager() {
       if (value === '' || value === null || value === undefined) url.searchParams.delete(key);
       else url.searchParams.set(key, value);
       window.history.replaceState({}, '', url);
+    },
+
+    // Ensure the browser paints the spinner before starting heavy work.
+    withSpinner(fn) {
+      this.loading++;
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try { fn(); } finally { this.loading--; }
+        });
+      });
     },
 
     applyTheme() {
@@ -417,17 +415,12 @@ function depManager() {
       document.head.appendChild(link);
       document.documentElement.style.setProperty('--graph-font', this.fontFamilyCss());
       if (this.cy) {
-        this.loading++;
-        setTimeout(() => {
-          try {
-            this.cy.style()
-              .selector('node').style({ 'font-family': this.fontFamilyCss() })
-              .selector('edge').style({ 'font-family': this.fontFamilyCss() })
-              .update();
-          } finally {
-            this.loading--;
-          }
-        }, 0);
+        this.withSpinner(() => {
+          this.cy.style()
+            .selector('node').style({ 'font-family': this.fontFamilyCss() })
+            .selector('edge').style({ 'font-family': this.fontFamilyCss() })
+            .update();
+        });
       }
     },
 
@@ -741,112 +734,100 @@ function depManager() {
     },
 
     parseAndRender() {
-      this.loading++;
-      setTimeout(() => {
-        try {
-          const data = this.parseConfig();
-          const adjacencies = data.filter((item) => item.type === 'adjacency');
+      this.withSpinner(() => {
+        const data = this.parseConfig();
+        const adjacencies = data.filter((item) => item.type === 'adjacency');
 
-          // Structural fingerprint: only rebuild+layout when edges/nodes/attrs change.
-          const fingerprint = adjacencies.map((a) =>
-            `${a.src}\t${a.label}\t${a.target}\t${a.attrsRaw}`
-          ).join('\n') + '\n_curve=' + this.curveDistance;
-          if (fingerprint === this._lastFingerprint) {
-            return;
-          }
-          this._lastFingerprint = fingerprint;
-
-          const elements = [];
-          const nodesSet = new Set();
-          const edgesData = [];
-          const edgeCounts = {};
-
-          adjacencies.forEach((item, i) => {
-            nodesSet.add(item.src);
-            nodesSet.add(item.target);
-
-            const pairId = [item.src, item.target].sort().join('-');
-            edgeCounts[pairId] = (edgeCounts[pairId] || 0) + 1;
-            const count = edgeCounts[pairId];
-            // Perpendicular offset: alternate sides, growing magnitude per pair.
-            const distance = (count % 2 === 0 ? 1 : -1) * (Math.ceil(count / 2) * parseInt(this.curveDistance));
-            // Stagger label position along the edge so multiple parallel labels
-            // don't pile up at the midpoint. Spreads weights around 0.5 in steps.
-            const step = 0.08;
-            const weight = 0.5 + (count % 2 === 0 ? 1 : -1) * Math.ceil(count / 2) * step;
-
-            edgesData.push({
-              group: 'edges',
-              data: {
-                id: `e-${i}`,
-                source: item.src,
-                target: item.target,
-                label: item.label,
-                attrs: item.attrs || {},
-                fullLabel: this.buildEdgeLabel(item),
-                curveDistance: distance,
-                curveWeight: Math.max(0.15, Math.min(0.85, weight)),
-              },
-            });
-          });
-
-          // Save current node positions before rebuilding.
-          const savedPositions = {};
-          if (this.cy) {
-            this.cy.nodes().forEach((n) => {
-              const pos = n.position();
-              savedPositions[n.id()] = { x: pos.x, y: pos.y };
-            });
-          }
-
-          nodesSet.forEach((nodeId) => {
-            elements.push({ group: 'nodes', data: { id: nodeId } });
-          });
-          elements.push(...edgesData);
-
-          this.cy.elements().remove();
-          this.cy.add(elements);
-
-          // Restore saved positions for existing nodes.
-          let hasNewNodes = false;
-          const newNodeIds = [];
-          this.cy.nodes().forEach((n) => {
-            const saved = savedPositions[n.id()];
-            if (saved) {
-              n.position(saved);
-            } else {
-              hasNewNodes = true;
-              newNodeIds.push(n.id());
-            }
-          });
-
-          // Only run layout if there are new nodes without positions.
-          if (hasNewNodes || !Object.keys(savedPositions).length) {
-            this.runLayout({ newNodeIds });
-          }
-          this.applyEdgeRules();
-          this.applyEdgeStyleRules();
-          this.buildEdgeList();
-          this.nodeCount = this.cy.nodes().length;
-          this.edgeCount = this.cy.edges().length;
-        } catch (e) {
-          console.error(e);
-        } finally {
-          this.loading--;
+        // Structural fingerprint: only rebuild+layout when edges/nodes/attrs change.
+        const fingerprint = adjacencies.map((a) =>
+          `${a.src}\t${a.label}\t${a.target}\t${a.attrsRaw}`
+        ).join('\n') + '\n_curve=' + this.curveDistance;
+        if (fingerprint === this._lastFingerprint) {
+          return;
         }
-      }, 0);
+        this._lastFingerprint = fingerprint;
+
+        const elements = [];
+        const nodesSet = new Set();
+        const edgesData = [];
+        const edgeCounts = {};
+
+        adjacencies.forEach((item, i) => {
+          nodesSet.add(item.src);
+          nodesSet.add(item.target);
+
+          const pairId = [item.src, item.target].sort().join('-');
+          edgeCounts[pairId] = (edgeCounts[pairId] || 0) + 1;
+          const count = edgeCounts[pairId];
+          // Perpendicular offset: alternate sides, growing magnitude per pair.
+          const distance = (count % 2 === 0 ? 1 : -1) * (Math.ceil(count / 2) * parseInt(this.curveDistance));
+          // Stagger label position along the edge so multiple parallel labels
+          // don't pile up at the midpoint. Spreads weights around 0.5 in steps.
+          const step = 0.08;
+          const weight = 0.5 + (count % 2 === 0 ? 1 : -1) * Math.ceil(count / 2) * step;
+
+          edgesData.push({
+            group: 'edges',
+            data: {
+              id: `e-${i}`,
+              source: item.src,
+              target: item.target,
+              label: item.label,
+              attrs: item.attrs || {},
+              fullLabel: this.buildEdgeLabel(item),
+              curveDistance: distance,
+              curveWeight: Math.max(0.15, Math.min(0.85, weight)),
+            },
+          });
+        });
+
+        // Save current node positions before rebuilding.
+        const savedPositions = {};
+        if (this.cy) {
+          this.cy.nodes().forEach((n) => {
+            const pos = n.position();
+            savedPositions[n.id()] = { x: pos.x, y: pos.y };
+          });
+        }
+
+        nodesSet.forEach((nodeId) => {
+          elements.push({ group: 'nodes', data: { id: nodeId } });
+        });
+        elements.push(...edgesData);
+
+        this.cy.elements().remove();
+        this.cy.add(elements);
+
+        // Restore saved positions for existing nodes.
+        let hasNewNodes = false;
+        const newNodeIds = [];
+        this.cy.nodes().forEach((n) => {
+          const saved = savedPositions[n.id()];
+          if (saved) {
+            n.position(saved);
+          } else {
+            hasNewNodes = true;
+            newNodeIds.push(n.id());
+          }
+        });
+
+        // Only run layout if there are new nodes without positions.
+        if (hasNewNodes || !Object.keys(savedPositions).length) {
+          this.runLayout({ newNodeIds });
+        }
+        this.applyEdgeRules();
+        this.applyEdgeStyleRules();
+        this.buildEdgeList();
+        this.nodeCount = this.cy.nodes().length;
+        this.edgeCount = this.cy.edges().length;
+      });
     },
 
     repositionNodes() {
       if (!this.cy) return;
-      this.loading++;
-      setTimeout(() => {
-        try {
-          this.runLayout({ initializeAll: true });
-        } finally {
-          this.loading--;
-        }
-      }, 0);
+      this.withSpinner(() => {
+        this.runLayout({ initializeAll: true });
+      });
     },
 
     // Layout that pushes high-degree (hub) nodes further apart.
@@ -995,34 +976,29 @@ function depManager() {
     },
 
     formatConfig() {
-      this.loading++;
-      setTimeout(() => {
-        try {
-          const data = this.parseConfig();
-          if (!data.length) return;
+      this.withSpinner(() => {
+        const data = this.parseConfig();
+        if (!data.length) return;
 
-          const adjacencies = data.filter((d) => d.type === 'adjacency');
-          const maxSrc = Math.max(...adjacencies.map((d) => d.src.length), 0);
-          const maxLabel = Math.max(...adjacencies.map((d) => d.label.length), 0);
+        const adjacencies = data.filter((d) => d.type === 'adjacency');
+        const maxSrc = Math.max(...adjacencies.map((d) => d.src.length), 0);
+        const maxLabel = Math.max(...adjacencies.map((d) => d.label.length), 0);
 
-          this.rawConfig = data.map((item) => {
-            if (item.type === 'blank') return '';
-            if (item.type === 'comment') return item.comment;
+        this.rawConfig = data.map((item) => {
+          if (item.type === 'blank') return '';
+          if (item.type === 'comment') return item.comment;
 
-            const srcPart = `"${item.src}"`.padEnd(maxSrc + 2, '-');
-            const labelText = `"${item.label}"`;
-            const totalLabelWidth = maxLabel + 6;
-            const labelPart = labelText
-              .padStart((totalLabelWidth + labelText.length) / 2, '-')
-              .padEnd(totalLabelWidth, '-');
+          const srcPart = `"${item.src}"`.padEnd(maxSrc + 2, '-');
+          const labelText = `"${item.label}"`;
+          const totalLabelWidth = maxLabel + 6;
+          const labelPart = labelText
+            .padStart((totalLabelWidth + labelText.length) / 2, '-')
+            .padEnd(totalLabelWidth, '-');
 
-            const tail = item.attrsRaw ? ` ${item.attrsRaw}` : '';
-            return `${srcPart}---${labelPart}-->"${item.target}"${tail}`;
-          }).join('\n');
-        } finally {
-          this.loading--;
-        }
-      }, 0);
+          const tail = item.attrsRaw ? ` ${item.attrsRaw}` : '';
+          return `${srcPart}---${labelPart}-->"${item.target}"${tail}`;
+        }).join('\n');
+      });
     },
 
     // Build a multi-line label for an edge: label + key=value pairs
