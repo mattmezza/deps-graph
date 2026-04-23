@@ -99,11 +99,11 @@ function depManager() {
     subtitle: params.get('subtitle') || 'Dependencies',
 
     // Theme
-    mainColor: params.get('main') ? '#' + params.get('main') : '#0058ab',
-    accentColor: params.get('accent') ? '#' + params.get('accent') : '#ffda1a',
-    edgeColor: params.get('edge') ? '#' + params.get('edge') : '#4b5563',
+    mainColor: params.get('main') ? '#' + params.get('main') : '#4f46e5',
+    accentColor: params.get('accent') ? '#' + params.get('accent') : '#f59e0b',
+    edgeColor: params.get('edge') ? '#' + params.get('edge') : '#94a3b8',
     mainTextColor: params.get('mainText') ? '#' + params.get('mainText') : '#ffffff',
-    accentTextColor: params.get('accentText') ? '#' + params.get('accentText') : '#003366',
+    accentTextColor: params.get('accentText') ? '#' + params.get('accentText') : '#451a03',
 
     // Graph settings
     _configParam: params.get('config') || '',
@@ -347,11 +347,25 @@ function depManager() {
     },
 
     resetColors() {
-      this.mainColor = '#0058ab';
-      this.accentColor = '#ffda1a';
-      this.edgeColor = '#4b5563';
-      this.mainTextColor = '#ffffff';
-      this.accentTextColor = '#003366';
+      this.applyPreset(this.colorPresets[0]);
+    },
+
+    colorPresets: [
+      { name: 'Indigo',    main: '#4f46e5', accent: '#f59e0b', edge: '#94a3b8', mainText: '#ffffff', accentText: '#451a03' },
+      { name: 'Ocean',     main: '#0e7490', accent: '#fbbf24', edge: '#6b7280', mainText: '#ffffff', accentText: '#422006' },
+      { name: 'Forest',    main: '#166534', accent: '#facc15', edge: '#78716c', mainText: '#ffffff', accentText: '#3f3f46' },
+      { name: 'Rose',      main: '#be123c', accent: '#fde68a', edge: '#a1a1aa', mainText: '#ffffff', accentText: '#881337' },
+      { name: 'Slate',     main: '#334155', accent: '#38bdf8', edge: '#9ca3af', mainText: '#f1f5f9', accentText: '#0c4a6e' },
+      { name: 'Lavender',  main: '#7c3aed', accent: '#a3e635', edge: '#a78bfa', mainText: '#ffffff', accentText: '#1a2e05' },
+      { name: 'Mono',      main: '#18181b', accent: '#e4e4e7', edge: '#71717a', mainText: '#fafafa', accentText: '#18181b' },
+    ],
+
+    applyPreset(preset) {
+      this.mainColor = preset.main;
+      this.accentColor = preset.accent;
+      this.edgeColor = preset.edge;
+      this.mainTextColor = preset.mainText;
+      this.accentTextColor = preset.accentText;
     },
 
     // Re-apply graph styles whose colors are theme-dependent
