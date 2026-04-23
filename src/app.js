@@ -71,6 +71,13 @@ function depManager() {
       try { return JSON.parse(safeAtob(raw)) || []; } catch (e) { return []; }
     })(),
 
+    // Edge style rules: [{attr, op:'is'|'contains', value, style:'dashed'|'dotted'|...}]
+    edgeStyleRules: (() => {
+      const raw = params.get('styleRules');
+      if (!raw) return [];
+      try { return JSON.parse(safeAtob(raw)) || []; } catch (e) { return []; }
+    })(),
+
     init() {
       this.applyTheme();
       this.initGraph();
@@ -282,6 +289,66 @@ function depManager() {
       });
     },
 
+    // ---------- edge style rules (line dash pattern) ----------
+    // Style options map to Cytoscape line-style + line-dash-pattern values.
+    edgeStyleOptions: [
+      { value: 'solid',         label: 'Solid' },
+      { value: 'dotted',        label: 'Dotted' },
+      { value: 'short-dash',    label: 'Short Dash' },
+      { value: 'medium-dash',   label: 'Medium Dash' },
+      { value: 'long-dash',     label: 'Long Dash' },
+      { value: 'dash-dot',      label: 'Dash-Dot' },
+    ],
+
+    edgeStylePatterns: {
+      'solid':       { lineStyle: 'solid', pattern: null },
+      'dotted':      { lineStyle: 'dotted', pattern: null },
+      'short-dash':  { lineStyle: 'dashed', pattern: [4, 4] },
+      'medium-dash': { lineStyle: 'dashed', pattern: [10, 6] },
+      'long-dash':   { lineStyle: 'dashed', pattern: [20, 8] },
+      'dash-dot':    { lineStyle: 'dashed', pattern: [12, 4, 2, 4] },
+    },
+
+    addEdgeStyleRule() {
+      this.edgeStyleRules.push({ attr: '', op: 'is', value: '', style: 'short-dash' });
+      this.persistEdgeStyleRules();
+      this.applyEdgeStyleRules();
+    },
+    removeEdgeStyleRule(idx) {
+      this.edgeStyleRules.splice(idx, 1);
+      this.persistEdgeStyleRules();
+      this.applyEdgeStyleRules();
+    },
+    persistEdgeStyleRules() {
+      if (!this.edgeStyleRules.length) this.updateURL('styleRules', '');
+      else this.updateURL('styleRules', btoa(JSON.stringify(this.edgeStyleRules)));
+    },
+    styleForEdge(attrs) {
+      for (const rule of this.edgeStyleRules) {
+        if (this.evalEdgeRule(attrs, rule)) return rule.style;
+      }
+      return null;
+    },
+    applyEdgeStyleRules() {
+      if (!this.cy) return;
+      this.persistEdgeStyleRules();
+      this.cy.edges().forEach((e) => {
+        const styleName = this.styleForEdge(e.data('attrs') || {});
+        if (styleName && this.edgeStylePatterns[styleName]) {
+          const sp = this.edgeStylePatterns[styleName];
+          e.style('line-style', sp.lineStyle);
+          if (sp.pattern) {
+            e.style('line-dash-pattern', sp.pattern);
+          } else {
+            e.removeStyle('line-dash-pattern');
+          }
+        } else {
+          e.removeStyle('line-style');
+          e.removeStyle('line-dash-pattern');
+        }
+      });
+    },
+
     initGraph() {
       this.cy = cytoscape({
         container: document.getElementById('cy'),
@@ -471,6 +538,15 @@ function depManager() {
         });
       });
 
+      // Save current node positions before rebuilding.
+      const savedPositions = {};
+      if (this.cy) {
+        this.cy.nodes().forEach((n) => {
+          const pos = n.position();
+          savedPositions[n.id()] = { x: pos.x, y: pos.y };
+        });
+      }
+
       nodesSet.forEach((nodeId) => {
         elements.push({ group: 'nodes', data: { id: nodeId } });
       });
@@ -479,9 +555,29 @@ function depManager() {
       this.cy.elements().remove();
       this.cy.add(elements);
 
-      this.runLayout();
+      // Restore saved positions for existing nodes.
+      let hasNewNodes = false;
+      this.cy.nodes().forEach((n) => {
+        const saved = savedPositions[n.id()];
+        if (saved) {
+          n.position(saved);
+        } else {
+          hasNewNodes = true;
+        }
+      });
+
+      // Only run layout if there are new nodes without positions.
+      if (hasNewNodes || !Object.keys(savedPositions).length) {
+        this.runLayout();
+      }
       this.applyEdgeRules();
+      this.applyEdgeStyleRules();
       this.buildEdgeList();
+    },
+
+    repositionNodes() {
+      if (!this.cy) return;
+      this.runLayout();
     },
 
     // Layout that pushes high-degree (hub) nodes further apart.
