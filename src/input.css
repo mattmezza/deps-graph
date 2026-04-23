@@ -70,3 +70,7 @@ body {
     height: 100%;
     background: var(--cy-bg);
 }
+
+[x-cloak] {
+    display: none !important;
+}

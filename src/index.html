@@ -70,7 +70,7 @@
                     </svg>
                     <span>Share</span>
                 </button>
-                <div x-show="open" x-transition.opacity
+                <div x-show="open" x-transition.opacity x-cloak
                      class="absolute right-0 mt-1 w-56 bg-dark-panel border border-dark-border shadow-lg z-20 p-3">
                     <p class="text-[10px] font-bold text-s-muted uppercase mb-2">Include in link</p>
                     <label class="flex items-center gap-2 text-xs text-s-text mb-1.5 cursor-pointer">
@@ -120,7 +120,7 @@
                         </svg>
                     </button>
                 </div>
-                <div x-show="open" x-transition.opacity
+                <div x-show="open" x-transition.opacity x-cloak
                      class="absolute right-0 mt-1 w-32 bg-white text-brand-primary border border-dark-border shadow-md z-20">
                     <template x-for="fmt in ['png', 'svg', 'jpg']" :key="fmt">
                         <button
@@ -545,6 +545,18 @@
 
         <section class="flex-1 relative min-w-0">
             <div id="cy"></div>
+
+            <!-- Loading overlay -->
+            <div x-show="loading" x-cloak class="absolute inset-0 z-20 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+                <div class="flex flex-col items-center gap-3">
+                    <svg class="animate-spin h-10 w-10 text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span class="text-sm font-bold text-s-text">Rendering graph...</span>
+                </div>
+            </div>
+
             <div class="fixed bottom-6 right-6 flex flex-col gap-2 z-10">
                 <button @click="toggleAside()"
                         :title="asideCollapsed ? 'Show panel' : 'Hide panel'"
@@ -591,8 +603,8 @@
     </main>
 
     <!-- Info modal -->
-    <div x-show="showInfo" x-transition.opacity
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 hidden"
+    <div x-show="showInfo" x-transition.opacity x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
          @click.self="showInfo = false" @keydown.escape.window="showInfo = false">
         <div class="bg-dark-panel border border-dark-border shadow-2xl max-w-lg w-full mx-4 p-6 relative max-h-[80vh] overflow-y-auto"
              @click.stop>
