@@ -138,6 +138,9 @@ function depManager() {
     shareIncludeTheme: true,
     shareCopied: false,
     showInfo: false,
+    searchQuery: '',
+    searchResults: [],
+    showBetweenOpen: false,
 
     // Edge color rules: [{attr, op:'is'|'contains', value, color}]
     _rulesParam: params.get('rules') || '',
@@ -211,6 +214,8 @@ function depManager() {
       this.$watch('tab',           (v) => dUpdateURL('tab', v === 'config' ? '' : v));
       this.$watch('showLabels',    (v) => dUpdateURL('labels', v ? '1' : ''));
 
+      const dSearch = debounce(() => this.doSearch(), 150);
+      this.$watch('searchQuery', () => dSearch());
       window.addEventListener('popstate', async () => {
         const p = new URLSearchParams(window.location.search);
         const cfg = p.get('config');
@@ -998,6 +1003,50 @@ function depManager() {
         target: e.data('target'),
         display: `${e.data('source')}-${e.data('label')}->${e.data('target')}`,
       }));
+    },
+
+    doSearch() {
+      const q = (this.searchQuery || '').toLowerCase().trim();
+      if (!q || !this.cy) { this.searchResults = []; return; }
+      const results = [];
+      this.cy.nodes().forEach((n) => {
+        if (n.id().toLowerCase().includes(q)) {
+          results.push({ id: n.id(), type: 'node', label: n.id() });
+        }
+      });
+      this.cy.edges().forEach((e) => {
+        const full = `${e.data('source')}-${e.data('label')}->${e.data('target')}`.toLowerCase();
+        if (full.includes(q)) {
+          results.push({ id: e.id(), type: 'edge', label: e.data('source') + '-' + e.data('label') + '->' + e.data('target') });
+        }
+      });
+      this.searchResults = results;
+    },
+
+    searchAction(r) {
+      if (!this.cy) return;
+      this.cy.elements().removeClass('hl');
+      if (r.type === 'node') {
+        const n = this.cy.getElementById(r.id);
+        if (!n.empty()) {
+          n.addClass('hl');
+          this.cy.animate({ center: { eles: n }, zoom: 1.5 }, { duration: 400 });
+        }
+      } else {
+        const e = this.cy.getElementById(r.id);
+        if (!e.empty()) {
+          e.addClass('hl');
+          const nodes = e.connectedNodes();
+          nodes.addClass('hl');
+          this.cy.animate({ center: { eles: nodes.union(e) }, zoom: 1.5 }, { duration: 400 });
+        }
+      }
+    },
+
+    clearSearch() {
+      this.searchQuery = '';
+      this.searchResults = [];
+      if (this.cy) this.cy.elements().removeClass('hl');
     },
 
     computeImpact() {

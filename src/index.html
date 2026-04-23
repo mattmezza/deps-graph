@@ -160,24 +160,55 @@
                     </button>
                 </div>
 
+                <!-- Search -->
                 <div class="mt-4 pt-4 border-t border-dark-border">
                     <div class="flex items-center justify-between mb-2">
-                        <label class="text-[10px] font-bold text-s-muted uppercase">Show Only Between</label>
-                        <button
-                            x-show="filterBetweenActive"
-                            @click="filterBetweenSrc = ''; filterBetweenSink = ''; clearFilterBetween()"
-                            class="text-[10px] text-s-muted hover:text-red-400 cursor-pointer">&times; Clear</button>
+                        <label class="text-[10px] font-bold text-s-muted uppercase">Search Nodes &amp; Edges</label>
+                        <button x-show="searchQuery.length > 0"
+                                @click="clearSearch()"
+                                class="text-[10px] text-s-muted hover:text-red-400 cursor-pointer">&times; Clear</button>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 mb-2">
-                        <input type="text" x-model="filterBetweenSrc" placeholder="Source"
-                               class="p-1 bg-dark-bg border border-dark-border text-s-text text-xs font-mono">
-                        <input type="text" x-model="filterBetweenSink" placeholder="Sink"
-                               class="p-1 bg-dark-bg border border-dark-border text-s-text text-xs font-mono">
+                    <input type="text" x-model="searchQuery"
+                           placeholder="Type to search..."
+                           class="w-full p-2 bg-dark-bg border border-dark-border text-s-text text-xs font-mono">
+                    <div x-show="searchQuery.length > 0" class="mt-2 space-y-1 max-h-32 overflow-y-auto">
+                        <template x-for="r in searchResults" :key="r.id">
+                            <div @click="searchAction(r)"
+                                 class="flex items-center gap-2 p-1 cursor-pointer hover:bg-dark-border text-xs font-mono">
+                                <span class="w-3 h-3 rounded-full" :class="r.type === 'node' ? 'bg-brand-primary' : 'bg-brand-accent'"></span>
+                                <span x-text="r.label"></span>
+                            </div>
+                        </template>
+                        <p x-show="searchQuery.length > 0 && !searchResults.length" class="text-[10px] text-s-dim italic">No results.</p>
                     </div>
-                    <button @click="applyFilterBetween()"
-                            class="w-full bg-brand-primary hover:bg-brand-primary/80 text-brand-primary-text text-[10px] font-bold py-1 px-2 uppercase tracking-tighter transition-colors border border-dark-border">
-                        Filter
-                    </button>
+                </div>
+
+                <!-- Show Only Between (collapsible) -->
+                <div class="mt-4 pt-4 border-t border-dark-border">
+                    <div class="flex items-center justify-between mb-2">
+                        <button @click="showBetweenOpen = !showBetweenOpen"
+                                class="text-[10px] font-bold text-s-muted uppercase hover:text-s-text flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-3" :class="showBetweenOpen ? 'rotate-90' : ''">
+                                <path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 01-1.06-1.06L11.94 10 6.15 4.29a.75.75 0 112 1.06-1.06l5.94 5.94a.75.75 0 010 1.06l-5.94 5.94z" clip-rule="evenodd" />
+                            </svg>
+                            Show Only Between
+                        </button>
+                        <button x-show="filterBetweenActive"
+                                @click="filterBetweenSrc = ''; filterBetweenSink = ''; clearFilterBetween()"
+                                class="text-[10px] text-s-muted hover:text-red-400 cursor-pointer">&times; Clear</button>
+                    </div>
+                    <div x-show="showBetweenOpen">
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <input type="text" x-model="filterBetweenSrc" placeholder="Source"
+                                   class="p-1 bg-dark-bg border border-dark-border text-s-text text-xs font-mono">
+                            <input type="text" x-model="filterBetweenSink" placeholder="Sink"
+                                   class="p-1 bg-dark-bg border border-dark-border text-s-text text-xs font-mono">
+                        </div>
+                        <button @click="applyFilterBetween()"
+                                class="w-full bg-brand-primary hover:bg-brand-primary/80 text-brand-primary-text text-[10px] font-bold py-1 px-2 uppercase tracking-tighter transition-colors border border-dark-border">
+                            Filter
+                        </button>
+                    </div>
                 </div>
 
                 <div class="mt-4 pt-4 border-t border-dark-border">
