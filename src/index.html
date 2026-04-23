@@ -536,6 +536,14 @@
                         <option value="triangle">Triangle</option>
                     </select>
 
+                    <label class="block text-[10px] font-bold text-s-muted uppercase mb-2">Curve Offset</label>
+                    <div class="flex items-center gap-4 mb-4">
+                        <input type="range" min="10" max="300" x-model="curveDistance"
+                               class="flex-1 h-1 bg-dark-bg rounded-lg appearance-none cursor-pointer accent-brand-accent">
+                        <input type="number" x-model="curveDistance"
+                               class="w-16 p-1 bg-dark-bg border border-dark-border text-s-text text-xs font-mono text-center">
+                    </div>
+
                     <label class="block text-[10px] font-bold text-s-muted uppercase mb-2">Hub Spread <span class="text-s-dim normal-case">(push high-degree nodes apart)</span></label>
                     <div class="flex items-center gap-4">
                         <input type="range" min="0" max="10" step="0.5" x-model="hubSpread"
