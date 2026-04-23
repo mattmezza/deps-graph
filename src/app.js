@@ -5,6 +5,62 @@ if (typeof cytoscape !== 'undefined' && typeof cytoscapeSvg !== 'undefined') {
   try { cytoscape.use(cytoscapeSvg); } catch (_) { /* already registered */ }
 }
 
+// ---------- Lossless compression for URL params ----------
+// Uses deflate-raw via CompressionStream → base64url encoding.
+// Falls back to plain base64 on decode for backward compatibility.
+
+async function compressStr(str) {
+  const bytes = new TextEncoder().encode(str);
+  const cs = new CompressionStream('deflate-raw');
+  const writer = cs.writable.getWriter();
+  writer.write(bytes);
+  writer.close();
+  const chunks = [];
+  const reader = cs.readable.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+  const merged = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const c of chunks) { merged.set(c, offset); offset += c.length; }
+  // base64url (no padding) for URL safety.
+  return btoa(String.fromCharCode(...merged))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function decompressStr(encoded) {
+  // Try deflate-raw first, fall back to plain base64.
+  try {
+    const b64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(b64);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    const ds = new DecompressionStream('deflate-raw');
+    const writer = ds.writable.getWriter();
+    writer.write(bytes);
+    writer.close();
+    const chunks = [];
+    const reader = ds.readable.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    return new TextDecoder().decode(
+      chunks.reduce((acc, c) => {
+        const merged = new Uint8Array(acc.length + c.length);
+        merged.set(acc); merged.set(c, acc.length);
+        return merged;
+      }, new Uint8Array(0))
+    );
+  } catch (_) {
+    // Fallback: plain base64 (old URLs).
+    try { return atob(encoded); } catch (__) { return null; }
+  }
+}
+
 function depManager() {
   const params = new URLSearchParams(window.location.search);
   const safeAtob = (v) => { try { return atob(v); } catch (e) { return null; } };
@@ -40,9 +96,8 @@ function depManager() {
     edgeColor: params.get('edge') ? '#' + params.get('edge') : '#4b5563',
 
     // Graph settings
-    rawConfig: params.get('config') && safeAtob(params.get('config'))
-      ? safeAtob(params.get('config'))
-      : 'Auth-Login->API\nAPI-Query->Database\nFrontend-Request->API',
+    _configParam: params.get('config') || '',
+    rawConfig: 'Auth-Login->API\nAPI-Query->Database\nFrontend-Request->API',
     nodeSize: parseInt(params.get('nodeSize')) || 35,
     nodeShape: (() => {
       const allowed = ['ellipse', 'rectangle', 'round-rectangle', 'diamond', 'hexagon', 'triangle'];
@@ -66,20 +121,28 @@ function depManager() {
     exportFormat: localStorage.getItem('exportFormat') || 'png',
 
     // Edge color rules: [{attr, op:'is'|'contains', value, color}]
-    edgeRules: (() => {
-      const raw = params.get('rules');
-      if (!raw) return [];
-      try { return JSON.parse(safeAtob(raw)) || []; } catch (e) { return []; }
-    })(),
+    _rulesParam: params.get('rules') || '',
+    edgeRules: [],
 
     // Edge style rules: [{attr, op:'is'|'contains', value, style:'dashed'|'dotted'|...}]
-    edgeStyleRules: (() => {
-      const raw = params.get('styleRules');
-      if (!raw) return [];
-      try { return JSON.parse(safeAtob(raw)) || []; } catch (e) { return []; }
-    })(),
+    _styleRulesParam: params.get('styleRules') || '',
+    edgeStyleRules: [],
 
-    init() {
+    async init() {
+      // Decompress URL params (supports both compressed and plain base64).
+      if (this._configParam) {
+        const decoded = await decompressStr(this._configParam);
+        if (decoded) this.rawConfig = decoded;
+      }
+      if (this._rulesParam) {
+        const decoded = await decompressStr(this._rulesParam);
+        if (decoded) { try { this.edgeRules = JSON.parse(decoded) || []; } catch (_) {} }
+      }
+      if (this._styleRulesParam) {
+        const decoded = await decompressStr(this._styleRulesParam);
+        if (decoded) { try { this.edgeStyleRules = JSON.parse(decoded) || []; } catch (_) {} }
+      }
+
       this.applyTheme();
       this.initGraph();
       this.parseAndRender();
@@ -109,7 +172,7 @@ function depManager() {
       // Sync URL with state. URL writes are always debounced; expensive
       // graph operations are debounced too. Cheap DOM-only updates (title,
       // subtitle, theme CSS variables) stay immediate for snappy feedback.
-      this.$watch('rawConfig',     (v) => { dUpdateURL('config', btoa(v)); dParseAndRender(); });
+      this.$watch('rawConfig',     (v) => { compressStr(v).then((c) => this.updateURL('config', c)); dParseAndRender(); });
       this.$watch('title',         (v) => dUpdateURL('title', v));
       this.$watch('subtitle',      (v) => dUpdateURL('subtitle', v));
       this.$watch('mainColor',     (v) => { dUpdateURL('main',   v.replace('#', '')); dApplyTheme(); dRefreshGraphStyle(); });
@@ -123,11 +186,11 @@ function depManager() {
       this.$watch('tab',           (v) => dUpdateURL('tab', v === 'config' ? '' : v));
       this.$watch('showLabels',    (v) => dUpdateURL('labels', v ? '1' : ''));
 
-      window.addEventListener('popstate', () => {
+      window.addEventListener('popstate', async () => {
         const p = new URLSearchParams(window.location.search);
         const cfg = p.get('config');
         if (cfg) {
-          const decoded = safeAtob(cfg);
+          const decoded = await decompressStr(cfg);
           if (decoded) this.rawConfig = decoded;
         }
       });
@@ -259,7 +322,7 @@ function depManager() {
     },
     persistEdgeRules() {
       if (!this.edgeRules.length) this.updateURL('rules', '');
-      else this.updateURL('rules', btoa(JSON.stringify(this.edgeRules)));
+      else compressStr(JSON.stringify(this.edgeRules)).then((c) => this.updateURL('rules', c));
     },
     evalEdgeRule(attrs, rule) {
       if (!rule.attr) return false;
@@ -322,7 +385,7 @@ function depManager() {
     },
     persistEdgeStyleRules() {
       if (!this.edgeStyleRules.length) this.updateURL('styleRules', '');
-      else this.updateURL('styleRules', btoa(JSON.stringify(this.edgeStyleRules)));
+      else compressStr(JSON.stringify(this.edgeStyleRules)).then((c) => this.updateURL('styleRules', c));
     },
     styleForEdge(attrs) {
       for (const rule of this.edgeStyleRules) {
