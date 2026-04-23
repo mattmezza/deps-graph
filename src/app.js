@@ -86,14 +86,20 @@ function depManager() {
     filterBetweenActive: false,
     cy: null,
 
+    // Theme: 'system' | 'light' | 'dark'
+    theme: localStorage.getItem('theme') || 'system',
+    resolvedTheme: 'dark', // computed from theme + media query
+
     // Header
-    title: params.get('title') || 'Test Env',
-    subtitle: params.get('subtitle') || 'Mesh & Deps',
+    title: params.get('title') || 'My Graph',
+    subtitle: params.get('subtitle') || 'Dependencies',
 
     // Theme
     mainColor: params.get('main') ? '#' + params.get('main') : '#0058ab',
     accentColor: params.get('accent') ? '#' + params.get('accent') : '#ffda1a',
     edgeColor: params.get('edge') ? '#' + params.get('edge') : '#4b5563',
+    mainTextColor: params.get('mainText') ? '#' + params.get('mainText') : '#ffffff',
+    accentTextColor: params.get('accentText') ? '#' + params.get('accentText') : '#003366',
 
     // Graph settings
     _configParam: params.get('config') || '',
@@ -143,6 +149,10 @@ function depManager() {
         if (decoded) { try { this.edgeStyleRules = JSON.parse(decoded) || []; } catch (_) {} }
       }
 
+      this.applyResolvedTheme();
+      // Listen for system preference changes.
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.applyResolvedTheme());
+
       this.applyTheme();
       this.initGraph();
       this.parseAndRender();
@@ -178,6 +188,8 @@ function depManager() {
       this.$watch('mainColor',     (v) => { dUpdateURL('main',   v.replace('#', '')); dApplyTheme(); dRefreshGraphStyle(); });
       this.$watch('accentColor',   (v) => { dUpdateURL('accent', v.replace('#', '')); dApplyTheme(); dRefreshGraphStyle(); });
       this.$watch('edgeColor',     (v) => { dUpdateURL('edge',   v.replace('#', '')); dRefreshGraphStyle(); });
+      this.$watch('mainTextColor', (v) => { dUpdateURL('mainText', v.replace('#', '')); dApplyTheme(); });
+      this.$watch('accentTextColor', (v) => { dUpdateURL('accentText', v.replace('#', '')); dApplyTheme(); });
       this.$watch('nodeSize',      (v) => { dUpdateURL('nodeSize', v); dNodeSizeStyle(v); });
       this.$watch('nodeShape',     (v) => { dUpdateURL('shape', v); dNodeShapeStyle(v); });
       this.$watch('curveDistance', (v) => { dUpdateURL('curve', v); dParseAndRender(); });
@@ -215,6 +227,50 @@ function depManager() {
       const root = document.documentElement;
       root.style.setProperty('--theme-main', this.mainColor);
       root.style.setProperty('--theme-accent', this.accentColor);
+      root.style.setProperty('--theme-main-text', this.mainTextColor);
+      root.style.setProperty('--theme-accent-text', this.accentTextColor);
+    },
+
+    applyResolvedTheme() {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.resolvedTheme = this.theme === 'system'
+        ? (prefersDark ? 'dark' : 'light')
+        : this.theme;
+      document.documentElement.classList.toggle('dark', this.resolvedTheme === 'dark');
+      // Update Cytoscape canvas colors if graph exists.
+      if (this.cy) {
+        this.updateCyThemeColors();
+      }
+    },
+
+    cycleTheme() {
+      const order = ['system', 'light', 'dark'];
+      const idx = order.indexOf(this.theme);
+      this.theme = order[(idx + 1) % order.length];
+      localStorage.setItem('theme', this.theme);
+      this.applyResolvedTheme();
+    },
+
+    updateCyThemeColors() {
+      const styles = getComputedStyle(document.documentElement);
+      const cyBg = styles.getPropertyValue('--cy-bg').trim();
+      const labelBg = styles.getPropertyValue('--edge-label-bg').trim();
+      const labelBorder = styles.getPropertyValue('--edge-label-border').trim();
+      const labelColor = styles.getPropertyValue('--edge-label-color').trim();
+      const nodeColor = styles.getPropertyValue('--node-label-color').trim();
+      const surfaceText = styles.getPropertyValue('--surface-text').trim();
+
+      this.cy.container().style.background = cyBg;
+      this.cy.style()
+        .selector('node').style({
+          'color': nodeColor,
+        })
+        .selector('edge').style({
+          'color': labelColor,
+          'text-background-color': labelBg,
+          'text-border-color': labelBorder,
+        })
+        .update();
     },
 
     // ---------- aside resize ----------
@@ -283,6 +339,8 @@ function depManager() {
       this.mainColor = '#0058ab';
       this.accentColor = '#ffda1a';
       this.edgeColor = '#4b5563';
+      this.mainTextColor = '#ffffff';
+      this.accentTextColor = '#003366';
     },
 
     // Re-apply graph styles whose colors are theme-dependent
@@ -414,6 +472,12 @@ function depManager() {
     },
 
     initGraph() {
+      const styles = getComputedStyle(document.documentElement);
+      const labelBg = styles.getPropertyValue('--edge-label-bg').trim() || '#111827';
+      const labelBorder = styles.getPropertyValue('--edge-label-border').trim() || '#374151';
+      const labelColor = styles.getPropertyValue('--edge-label-color').trim() || '#f9fafb';
+      const nodeColor = styles.getPropertyValue('--node-label-color').trim() || '#ffffff';
+
       this.cy = cytoscape({
         container: document.getElementById('cy'),
         // Lower = finer zoom steps per wheel notch (default is 1).
@@ -422,7 +486,7 @@ function depManager() {
           {
             selector: 'node',
             style: {
-              color: '#f9fafb',
+              color: nodeColor,
               shape: this.nodeShape,
               'border-width': 2,
               'border-color': this.accentColor,
@@ -447,15 +511,15 @@ function depManager() {
               'curve-style': 'unbundled-bezier',
               'control-point-weights': (edge) => edge.data('curveWeight') ?? 0.5,
               'control-point-distances': (edge) => edge.data('curveDistance') || 0,
-              color: '#f9fafb',
+              color: labelColor,
               'font-size': '10px',
               'text-wrap': 'wrap',
               'text-background-opacity': 1,
-              'text-background-color': '#111827',
+              'text-background-color': labelBg,
               'text-background-padding': '3px',
               'text-background-shape': 'roundrectangle',
               'text-border-opacity': 1,
-              'text-border-color': '#374151',
+              'text-border-color': labelBorder,
               'text-border-width': 1,
               'text-rotation': 'autorotate',
             },
@@ -979,7 +1043,7 @@ function depManager() {
       if (!this.cy) return;
       const fmt = (this.exportFormat || 'png').toLowerCase();
       const filename = `dependency-mesh.${fmt}`;
-      const bg = '#111827';
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--cy-bg').trim() || '#111827';
 
       if (fmt === 'svg') {
         if (typeof this.cy.svg !== 'function') {

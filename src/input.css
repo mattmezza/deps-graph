@@ -4,27 +4,69 @@
 @source "./index.html";
 @source "./app.js";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
     --color-brand-primary: var(--theme-main, #0058ab);
     --color-brand-accent: var(--theme-accent, #ffda1a);
+    --color-brand-primary-text: var(--theme-main-text, #ffffff);
+    --color-brand-accent-text: var(--theme-accent-text, #003366);
     --color-brand-muted: #f5f5f5;
-    --color-dark-bg: #111827;
-    --color-dark-panel: #1f2937;
-    --color-dark-border: #374151;
+    /* Surface tokens: resolve to light or dark values via CSS vars */
+    --color-dark-bg: var(--surface-bg);
+    --color-dark-panel: var(--surface-panel);
+    --color-dark-border: var(--surface-border);
+    --color-light-bg: #f3f4f6;
+    --color-light-panel: #ffffff;
+    --color-light-border: #d1d5db;
+    /* Semantic text colors */
+    --color-s-text: var(--surface-text);
+    --color-s-muted: var(--surface-text-muted);
+    --color-s-dim: var(--surface-text-dim);
 }
 
 :root {
     --theme-main: #0058ab;
     --theme-accent: #ffda1a;
+    --theme-main-text: #ffffff;
+    --theme-accent-text: #003366;
+    /* Light mode surfaces (default) */
+    --surface-bg: #f3f4f6;
+    --surface-panel: #ffffff;
+    --surface-border: #d1d5db;
+    --surface-text: #111827;
+    --surface-text-muted: #6b7280;
+    --surface-text-dim: #9ca3af;
+    --cy-bg: #e5e7eb;
+    --edge-label-bg: #ffffff;
+    --edge-label-border: #d1d5db;
+    --edge-label-color: #1f2937;
+    --node-label-color: #ffffff;
+}
+
+.dark {
+    --surface-bg: #111827;
+    --surface-panel: #1f2937;
+    --surface-border: #374151;
+    --surface-text: #f9fafb;
+    --surface-text-muted: #9ca3af;
+    --surface-text-dim: #6b7280;
+    --cy-bg: #111827;
+    --edge-label-bg: #111827;
+    --edge-label-border: #374151;
+    --edge-label-color: #f9fafb;
+    --node-label-color: #ffffff;
 }
 
 body {
     font-family: "Noto Sans", Verdana, sans-serif;
-    @apply bg-dark-bg text-gray-100;
+    background: var(--surface-bg);
+    color: var(--surface-text);
 }
+
 
 #cy {
     width: 100%;
     height: 100%;
-    background: #111827;
+    background: var(--cy-bg);
 }
