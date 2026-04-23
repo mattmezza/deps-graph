@@ -59,7 +59,7 @@
 }
 
 body {
-    font-family: "Noto Sans", Verdana, sans-serif;
+    font-family: var(--graph-font, "Noto Sans", Verdana, sans-serif);
     background: var(--surface-bg);
     color: var(--surface-text);
 }
@@ -73,4 +73,11 @@ body {
 
 [x-cloak] {
     display: none !important;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin {
+  animation: spin 1s linear infinite;
 }

@@ -111,6 +111,8 @@ function depManager() {
     _configParam: params.get('config') || '',
     rawConfig: 'Auth-Login->API\nAPI-Query->Database\nFrontend-Request->API',
     nodeSize: parseInt(params.get('nodeSize')) || 35,
+    fontFamily: params.get('font') || localStorage.getItem('fontFamily') || 'noto-sans',
+    fontSize: parseInt(params.get('fontSize')) || parseInt(localStorage.getItem('fontSize')) || 12,
     nodeShape: (() => {
       const allowed = ['ellipse', 'rectangle', 'round-rectangle', 'diamond', 'hexagon', 'triangle'];
       const v = params.get('shape');
@@ -134,6 +136,7 @@ function depManager() {
 
     // Share options
     shareIncludeConfig: true,
+    shareIncludeBasicConfig: true,
     shareIncludeEdgeColors: true,
     shareIncludeEdgeStyles: true,
     shareIncludeTheme: true,
@@ -168,6 +171,7 @@ function depManager() {
       }
 
       this.applyResolvedTheme();
+      this.loadFontFamily();
       // Listen for system preference changes.
       window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => this.applyResolvedTheme());
 
@@ -215,6 +219,8 @@ function depManager() {
       this.$watch('accentTextColor', (v) => { dUpdateURL('accentText', v.replace('#', '')); dApplyTheme(); });
       this.$watch('nodeSize',      (v) => { dUpdateURL('nodeSize', v); dNodeSizeStyle(v); });
       this.$watch('nodeShape',     (v) => { dUpdateURL('shape', v); dNodeShapeStyle(v); });
+      this.$watch('fontFamily',    (v) => { localStorage.setItem('fontFamily', v); dUpdateURL('font', v); this.loadFontFamily(); });
+      this.$watch('fontSize',      (v) => { localStorage.setItem('fontSize', v); dUpdateURL('fontSize', v); dRefreshGraphStyle(); });
       this.$watch('curveDistance', (v) => { dUpdateURL('curve', v); dParseAndRender(); });
       this.$watch('hubSpread',     (v) => { dUpdateURL('hub',   v); dRunLayout(); });
       this.$watch('exportFormat',  (v) => { localStorage.setItem('exportFormat', v); });
@@ -374,6 +380,46 @@ function depManager() {
       { name: 'Mono',      main: '#18181b', accent: '#e4e4e7', edge: '#71717a', mainText: '#fafafa', accentText: '#18181b' },
     ],
 
+    fontFamilyCss() {
+      const font = this.bunnyFonts.find(f => f.slug === this.fontFamily) || this.bunnyFonts[0];
+      return `"${font.name}", sans-serif`;
+    },
+
+    loadFontFamily() {
+      const font = this.bunnyFonts.find(f => f.slug === this.fontFamily) || this.bunnyFonts[0];
+      const existing = document.getElementById('dynamic-font');
+      if (existing) existing.remove();
+      const link = document.createElement('link');
+      link.id = 'dynamic-font';
+      link.rel = 'stylesheet';
+      link.href = `https://fonts.bunny.net/css?family=${encodeURIComponent(font.slug)}:400,700`;
+      document.head.appendChild(link);
+      document.documentElement.style.setProperty('--graph-font', this.fontFamilyCss());
+      if (this.cy) {
+        this.cy.style()
+          .selector('node').style({ 'font-family': this.fontFamilyCss() })
+          .selector('edge').style({ 'font-family': this.fontFamilyCss() })
+          .update();
+      }
+    },
+
+    bunnyFonts: [
+      { name: 'Noto Sans', slug: 'noto-sans' },
+      { name: 'Inter', slug: 'inter' },
+      { name: 'Roboto', slug: 'roboto' },
+      { name: 'Open Sans', slug: 'open-sans' },
+      { name: 'Lato', slug: 'lato' },
+      { name: 'Fira Sans', slug: 'fira-sans' },
+      { name: 'Source Sans 3', slug: 'source-sans-3' },
+      { name: 'Nunito', slug: 'nunito' },
+      { name: 'Poppins', slug: 'poppins' },
+      { name: 'Ubuntu', slug: 'ubuntu' },
+      { name: 'Playfair Display', slug: 'playfair-display' },
+      { name: 'Merriweather', slug: 'merriweather' },
+      { name: 'JetBrains Mono', slug: 'jetbrains-mono' },
+      { name: 'IBM Plex Mono', slug: 'ibm-plex-mono' },
+    ],
+
     applyPreset(preset) {
       this.mainColor = preset.main;
       this.accentColor = preset.accent;
@@ -389,10 +435,14 @@ function depManager() {
         .selector('node').style({
           'background-color': this.mainColor,
           'border-color': this.accentColor,
+          'font-size': this.fontSize + 'px',
+          'font-family': this.fontFamilyCss(),
         })
         .selector('edge').style({
           'line-color': this.edgeColor,
           'target-arrow-color': this.edgeColor,
+          'font-size': Math.max(8, this.fontSize - 2) + 'px',
+          'font-family': this.fontFamilyCss(),
         })
         .selector('edge.hover').style({
           'line-color': this.accentColor,
@@ -532,7 +582,8 @@ function depManager() {
               'background-color': this.mainColor,
               label: 'data(id)',
               'font-weight': 'bold',
-              'font-size': '12px',
+              'font-size': this.fontSize + 'px',
+              'font-family': this.fontFamilyCss(),
               'text-valign': 'center',
               'text-halign': 'center',
               width: this.nodeSize + 'px',
@@ -551,7 +602,8 @@ function depManager() {
               'control-point-weights': (edge) => edge.data('curveWeight') ?? 0.5,
               'control-point-distances': (edge) => edge.data('curveDistance') || 0,
               color: labelColor,
-              'font-size': '10px',
+              'font-size': Math.max(8, this.fontSize - 2) + 'px',
+              'font-family': this.fontFamilyCss(),
               'text-wrap': 'wrap',
               'text-background-opacity': 1,
               'text-background-color': labelBg,
@@ -1265,6 +1317,15 @@ function depManager() {
         url.searchParams.delete('edge');
         url.searchParams.delete('mainText');
         url.searchParams.delete('accentText');
+      }
+      if (!this.shareIncludeBasicConfig) {
+        url.searchParams.delete('nodeSize');
+        url.searchParams.delete('shape');
+        url.searchParams.delete('curve');
+        url.searchParams.delete('hub');
+        url.searchParams.delete('labels');
+        url.searchParams.delete('font');
+        url.searchParams.delete('fontSize');
       }
       await navigator.clipboard.writeText(url.toString());
       this.shareCopied = true;

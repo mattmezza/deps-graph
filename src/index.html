@@ -78,6 +78,10 @@
                         Adjacency list
                     </label>
                     <label class="flex items-center gap-2 text-xs text-s-text mb-1.5 cursor-pointer">
+                        <input type="checkbox" x-model="shareIncludeBasicConfig" class="accent-brand-accent">
+                        Basic config
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-s-text mb-1.5 cursor-pointer">
                         <input type="checkbox" x-model="shareIncludeEdgeColors" class="accent-brand-accent">
                         Edge color rules
                     </label>
@@ -497,9 +501,25 @@
 
                 <section class="mt-2 pt-4 border-t border-dark-border">
                     <h3 class="text-brand-primary font-bold border-b-2 border-brand-accent mb-4 pb-1 uppercase">Graph</h3>
+                    <label class="block text-[10px] font-bold text-s-muted uppercase mb-2">Font Family</label>
+                    <select x-model="fontFamily"
+                            class="w-full mb-4 p-2 bg-dark-bg border border-dark-border text-s-text text-xs font-mono">
+                        <template x-for="f in bunnyFonts" :key="f.slug">
+                            <option :value="f.slug" x-text="f.name"></option>
+                        </template>
+                    </select>
+
+                    <label class="block text-[10px] font-bold text-s-muted uppercase mb-2">Font Size</label>
+                    <div class="flex items-center gap-4 mb-4">
+                        <input type="range" min="8" max="32" x-model="fontSize"
+                               class="flex-1 h-1 bg-dark-bg rounded-lg appearance-none cursor-pointer accent-brand-accent">
+                        <input type="number" min="8" max="32" x-model="fontSize"
+                               class="w-16 p-1 bg-dark-bg border border-dark-border text-s-text text-xs font-mono text-center">
+                    </div>
+
                     <label class="block text-[10px] font-bold text-s-muted uppercase mb-2">Node Size</label>
                     <div class="flex items-center gap-4 mb-4">
-                        <input type="range" min="10" max="100" x-model="nodeSize"
+                        <input type="range" min="10" max="300" x-model="nodeSize"
                                class="flex-1 h-1 bg-dark-bg rounded-lg appearance-none cursor-pointer accent-brand-accent">
                         <input type="number" x-model="nodeSize"
                                class="w-16 p-1 bg-dark-bg border border-dark-border text-s-text text-xs font-mono text-center">
