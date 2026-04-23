@@ -428,12 +428,21 @@ function depManager() {
 
     parseAndRender() {
       const data = this.parseConfig();
+      const adjacencies = data.filter((item) => item.type === 'adjacency');
+
+      // Structural fingerprint: only rebuild+layout when edges/nodes/attrs change.
+      const fingerprint = adjacencies.map((a) =>
+        `${a.src}\t${a.label}\t${a.target}\t${a.attrsRaw}`
+      ).join('\n');
+      if (fingerprint === this._lastFingerprint) return;
+      this._lastFingerprint = fingerprint;
+
       const elements = [];
       const nodesSet = new Set();
       const edgesData = [];
       const edgeCounts = {};
 
-      data.filter((item) => item.type === 'adjacency').forEach((item, i) => {
+      adjacencies.forEach((item, i) => {
         nodesSet.add(item.src);
         nodesSet.add(item.target);
 
@@ -484,8 +493,8 @@ function depManager() {
     //    *closer* together on screen. We grow `boundingBox` linearly with
     //    spread instead, so cose has more room to actually separate hubs
     //    and the post-layout fit doesn't squash the result.
-    //  - We also use `randomize: true` so each layout run can escape local
-    //    minima where two hubs got stuck near each other.
+    //  - We also use deterministic initial positions based on node ID hashes
+    //    so the layout is reproducible across renders.
     runLayout() {
       if (!this.cy) return;
       const spread = parseFloat(this.hubSpread);
@@ -495,6 +504,23 @@ function depManager() {
       // Base canvas size scales with node count; spread multiplies it.
       const baseSide = 600 + n * 60;
       const side = baseSide * (1 + s * 0.6);
+
+      // Deterministic hash for initial positions (avoids random layout on every render).
+      const hashStr = (str) => {
+        let h = 0;
+        for (let i = 0; i < str.length; i++) {
+          h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+        }
+        return h;
+      };
+
+      // Place nodes deterministically before layout starts.
+      this.cy.nodes().forEach((node) => {
+        const h = hashStr(node.id());
+        const x = ((h & 0xFFFF) / 0xFFFF) * side;
+        const y = (((h >>> 16) & 0xFFFF) / 0xFFFF) * side;
+        node.position({ x, y });
+      });
 
       // Per-node repulsion: hubs get exponentially more repulsion than leaves.
       const repulsion = (node) => {
@@ -515,7 +541,7 @@ function depManager() {
         animate: false,
         fit: true,
         padding: 40,
-        randomize: true,
+        randomize: false,
         boundingBox: { x1: 0, y1: 0, w: side, h: side },
         componentSpacing: 100 + s * 50,
         nodeRepulsion: repulsion,
