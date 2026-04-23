@@ -305,6 +305,21 @@
                             </template>
                         </div>
                     </div>
+
+                    <div x-show="extendedImpactResult.length" class="mt-3 p-3 bg-dark-bg border border-dark-border">
+                        <p class="text-[10px] font-bold mb-2 uppercase text-gray-400" x-text="'Extended impact (' + extendedImpactResult.length + ')'"></p>
+                        <p class="text-[10px] text-gray-500 mb-2">Additional nodes downstream of the impacted set.</p>
+                        <div class="flex flex-wrap gap-1">
+                            <template x-for="id in extendedImpactResult" :key="id">
+                                <span
+                                    class="text-xs font-mono bg-dark-panel border border-dark-border px-2 py-1 cursor-pointer hover:border-brand-accent"
+                                    @mouseenter="highlightNodes([id])"
+                                    @mouseleave="clearHighlight()"
+                                    @click="zoomToNodes([id])"
+                                    x-text="id"></span>
+                            </template>
+                        </div>
+                    </div>
                 </section>
             </div>
 

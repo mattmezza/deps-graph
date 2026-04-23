@@ -22,6 +22,7 @@ function depManager() {
     edgeQueryRan: false,
     impactSelectedEdge: '',
     impactResult: [],
+    extendedImpactResult: [],
     edgeList: [],
     showLabels: params.get('labels') === '1',
     filterBetweenSrc: '',
@@ -844,9 +845,17 @@ function depManager() {
     },
 
     computeImpact() {
-      if (!this.cy || !this.impactSelectedEdge) { this.impactResult = []; return; }
+      if (!this.cy || !this.impactSelectedEdge) {
+        this.impactResult = [];
+        this.extendedImpactResult = [];
+        return;
+      }
       const selected = this.edgeList.find((e) => e.id === this.impactSelectedEdge);
-      if (!selected) { this.impactResult = []; return; }
+      if (!selected) {
+        this.impactResult = [];
+        this.extendedImpactResult = [];
+        return;
+      }
       const label = selected.label;
       // All edges sharing the same label.
       const matchingEdges = this.cy.edges().filter((e) => e.data('label') === label);
@@ -857,6 +866,18 @@ function depManager() {
         impactedNodes.add(e.data('target'));
       });
       this.impactResult = Array.from(impactedNodes);
+
+      // Extended impact: impacted nodes + all their downstream (predecessors)
+      // recursively. "Downstream of N" = things that depend on N.
+      const extended = new Set(impactedNodes);
+      impactedNodes.forEach((id) => {
+        const node = this.cy.getElementById(id);
+        if (!node.empty()) {
+          node.predecessors('node').forEach((n) => extended.add(n.id()));
+        }
+      });
+      // Remove the direct impacted nodes to show only the extension.
+      this.extendedImpactResult = Array.from(extended).filter((id) => !impactedNodes.has(id));
     },
 
     zoomToNodes(ids) {
