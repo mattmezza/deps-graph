@@ -236,6 +236,11 @@ function depManager() {
       this.$watch('tab',           (v) => dUpdateURL('tab', v === 'config' ? '' : v));
       this.$watch('showLabels',    (v) => dUpdateURL('labels', v ? '1' : ''));
 
+      const dApplyEdgeRules = debounce(() => { this.persistEdgeRules(); this.applyEdgeRules(); }, 300);
+      const dApplyEdgeStyleRules = debounce(() => { this.persistEdgeStyleRules(); this.applyEdgeStyleRules(); }, 300);
+      this.$watch('edgeRules', () => dApplyEdgeRules(), { deep: true });
+      this.$watch('edgeStyleRules', () => dApplyEdgeStyleRules(), { deep: true });
+
       const dSearch = debounce(() => this.doSearch(), 150);
       this.$watch('searchQuery', () => dSearch());
       window.addEventListener('popstate', async () => {
@@ -254,6 +259,10 @@ function depManager() {
         if (val) this.cy.edges().addClass('visible-labels');
         else this.cy.edges().removeClass('visible-labels');
       });
+
+      // Ensure rules loaded from URL are applied after everything is ready.
+      if (this.edgeRules.length) this.applyEdgeRules();
+      if (this.edgeStyleRules.length) this.applyEdgeStyleRules();
     },
 
     updateURL(key, value) {
