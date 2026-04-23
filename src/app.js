@@ -196,13 +196,28 @@ function depManager() {
           try { this.runLayout(); } finally { this.loading = false; }
         }, 0);
       }, 250);
-      const dRefreshGraphStyle = debounce(() => this.refreshGraphStyle(), 100);
+      const dRefreshGraphStyle = debounce(() => {
+        this.loading = true;
+        setTimeout(() => {
+          try { this.refreshGraphStyle(); } finally { this.loading = false; }
+        }, 0);
+      }, 100);
       const dApplyTheme       = debounce(() => this.applyTheme(), 50);
       const dNodeSizeStyle    = debounce((v) => {
-        this.cy.style().selector('node').style({ width: v + 'px', height: v + 'px' }).update();
+        this.loading = true;
+        setTimeout(() => {
+          try {
+            this.cy.style().selector('node').style({ width: v + 'px', height: v + 'px' }).update();
+          } finally { this.loading = false; }
+        }, 0);
       }, 100);
       const dNodeShapeStyle   = debounce((v) => {
-        this.cy.style().selector('node').style({ shape: v }).update();
+        this.loading = true;
+        setTimeout(() => {
+          try {
+            this.cy.style().selector('node').style({ shape: v }).update();
+          } finally { this.loading = false; }
+        }, 0);
       }, 50);
       const dUpdateURL        = debounce((k, v) => this.updateURL(k, v), 300);
 
@@ -396,10 +411,17 @@ function depManager() {
       document.head.appendChild(link);
       document.documentElement.style.setProperty('--graph-font', this.fontFamilyCss());
       if (this.cy) {
-        this.cy.style()
-          .selector('node').style({ 'font-family': this.fontFamilyCss() })
-          .selector('edge').style({ 'font-family': this.fontFamilyCss() })
-          .update();
+        this.loading = true;
+        setTimeout(() => {
+          try {
+            this.cy.style()
+              .selector('node').style({ 'font-family': this.fontFamilyCss() })
+              .selector('edge').style({ 'font-family': this.fontFamilyCss() })
+              .update();
+          } finally {
+            this.loading = false;
+          }
+        }, 0);
       }
     },
 
@@ -968,27 +990,34 @@ function depManager() {
     },
 
     formatConfig() {
-      const data = this.parseConfig();
-      if (!data.length) return;
+      this.loading = true;
+      setTimeout(() => {
+        try {
+          const data = this.parseConfig();
+          if (!data.length) return;
 
-      const adjacencies = data.filter((d) => d.type === 'adjacency');
-      const maxSrc = Math.max(...adjacencies.map((d) => d.src.length), 0);
-      const maxLabel = Math.max(...adjacencies.map((d) => d.label.length), 0);
+          const adjacencies = data.filter((d) => d.type === 'adjacency');
+          const maxSrc = Math.max(...adjacencies.map((d) => d.src.length), 0);
+          const maxLabel = Math.max(...adjacencies.map((d) => d.label.length), 0);
 
-      this.rawConfig = data.map((item) => {
-        if (item.type === 'blank') return '';
-        if (item.type === 'comment') return item.comment;
+          this.rawConfig = data.map((item) => {
+            if (item.type === 'blank') return '';
+            if (item.type === 'comment') return item.comment;
 
-        const srcPart = `"${item.src}"`.padEnd(maxSrc + 2, '-');
-        const labelText = `"${item.label}"`;
-        const totalLabelWidth = maxLabel + 6;
-        const labelPart = labelText
-          .padStart((totalLabelWidth + labelText.length) / 2, '-')
-          .padEnd(totalLabelWidth, '-');
+            const srcPart = `"${item.src}"`.padEnd(maxSrc + 2, '-');
+            const labelText = `"${item.label}"`;
+            const totalLabelWidth = maxLabel + 6;
+            const labelPart = labelText
+              .padStart((totalLabelWidth + labelText.length) / 2, '-')
+              .padEnd(totalLabelWidth, '-');
 
-        const tail = item.attrsRaw ? ` ${item.attrsRaw}` : '';
-        return `${srcPart}---${labelPart}-->"${item.target}"${tail}`;
-      }).join('\n');
+            const tail = item.attrsRaw ? ` ${item.attrsRaw}` : '';
+            return `${srcPart}---${labelPart}-->"${item.target}"${tail}`;
+          }).join('\n');
+        } finally {
+          this.loading = false;
+        }
+      }, 0);
     },
 
     // Build a multi-line label for an edge: label + key=value pairs
