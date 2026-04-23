@@ -130,6 +130,7 @@ function depManager() {
     shareIncludeEdgeStyles: true,
     shareIncludeTheme: true,
     shareCopied: false,
+    showInfo: false,
 
     // Edge color rules: [{attr, op:'is'|'contains', value, color}]
     _rulesParam: params.get('rules') || '',

@@ -30,6 +30,15 @@
             <span class="text-sm font-medium tracking-wide uppercase cursor-pointer" x-text="subtitle" @click="tab = 'settings'" title="Click to edit"></span>
         </div>
         <div class="flex gap-2">
+            <!-- Info -->
+            <button @click="showInfo = true"
+                    title="How it works"
+                    class="bg-white text-brand-primary px-3 py-2 text-sm font-bold hover:bg-brand-accent hover:text-brand-accent-text transition-colors flex items-center gap-1">
+                <!-- heroicons: information-circle -->
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="size-4">
+                    <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clip-rule="evenodd" />
+                </svg>
+            </button>
             <!-- Theme switcher -->
             <button @click="cycleTheme()"
                     :title="'Theme: ' + theme"
@@ -526,6 +535,45 @@
             </div>
         </section>
     </main>
+
+    <!-- Info modal -->
+    <div x-show="showInfo" x-transition.opacity
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+         @click.self="showInfo = false" @keydown.escape.window="showInfo = false">
+        <div class="bg-dark-panel border border-dark-border shadow-2xl max-w-lg w-full mx-4 p-6 relative max-h-[80vh] overflow-y-auto"
+             @click.stop>
+            <button @click="showInfo = false"
+                    class="absolute top-3 right-3 text-s-muted hover:text-s-text text-lg leading-none">&times;</button>
+            <h2 class="text-brand-primary font-bold text-lg uppercase mb-4">Deps Graph</h2>
+
+            <div class="text-s-text text-sm space-y-3">
+                <p><b>Define dependencies</b> in the Dependencies tab using the syntax:</p>
+                <code class="block bg-dark-bg border border-dark-border p-2 text-xs font-mono">A-label->B &nbsp; <span class="text-s-muted"># A depends on B</span></code>
+                <p>Add attributes after the edge: <code class="bg-dark-bg px-1 text-xs font-mono">A-rel->B status=active env=prod</code></p>
+
+                <h3 class="font-bold text-s-muted uppercase text-[11px] pt-2">Edge rules</h3>
+                <p>Color or style edges based on attribute values (e.g. color all <code class="bg-dark-bg px-1 text-xs font-mono">status=active</code> edges green).</p>
+
+                <h3 class="font-bold text-s-muted uppercase text-[11px] pt-2">Analysis</h3>
+                <ul class="list-disc list-inside space-y-1 text-s-muted">
+                    <li><b class="text-s-text">Upstream/Downstream</b> &mdash; what a node depends on, or what depends on it</li>
+                    <li><b class="text-s-text">Roots &amp; Leaves</b> &mdash; nodes with no upstream or no downstream deps</li>
+                    <li><b class="text-s-text">Edge Query</b> &mdash; all edges on any path between two nodes</li>
+                    <li><b class="text-s-text">Impact</b> &mdash; select an edge to see all nodes affected if that dependency breaks, with degree of separation</li>
+                </ul>
+
+                <h3 class="font-bold text-s-muted uppercase text-[11px] pt-2">Settings</h3>
+                <p>Customize title, colors, node size/shape, curve offset, hub spread. Click the title in the header to jump there.</p>
+
+                <h3 class="font-bold text-s-muted uppercase text-[11px] pt-2">Sharing</h3>
+                <p>Everything is encoded in the URL. Use the <b>Share</b> button to copy a link, optionally excluding edge rules or theme.</p>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-dark-border text-[10px] text-s-dim">
+                &copy; Matteo Merola &lt;mattmezza@gmail.com&gt; &mdash; MIT License
+            </div>
+        </div>
+    </div>
 
 </body>
 </html>
