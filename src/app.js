@@ -744,7 +744,7 @@ function depManager() {
           // Structural fingerprint: only rebuild+layout when edges/nodes/attrs change.
           const fingerprint = adjacencies.map((a) =>
             `${a.src}\t${a.label}\t${a.target}\t${a.attrsRaw}`
-          ).join('\n');
+          ).join('\n') + '\n_curve=' + this.curveDistance;
           if (fingerprint === this._lastFingerprint) {
             this.loading = false;
             return;
