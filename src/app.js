@@ -87,7 +87,12 @@ function depManager() {
 
     // Theme: 'system' | 'light' | 'dark'
     theme: localStorage.getItem('theme') || 'system',
-    resolvedTheme: 'dark', // computed from theme + media query
+    resolvedTheme: (() => {
+      const t = localStorage.getItem('theme') || 'system';
+      if (t === 'light') return 'light';
+      if (t === 'dark') return 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    })(),
 
     // Header
     title: params.get('title') || 'My Graph',
