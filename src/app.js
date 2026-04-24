@@ -184,6 +184,7 @@ function depManager() {
       this.applyTheme();
       this.initGraph();
       this.parseAndRender();
+      this.updatePageTitle();
 
       // Debounced helpers to keep the UI responsive while sliders / color
       // pickers / text inputs fire rapid changes.
@@ -225,8 +226,8 @@ function depManager() {
       // graph operations are debounced too. Cheap DOM-only updates (title,
       // subtitle, theme CSS variables) stay immediate for snappy feedback.
       this.$watch('rawConfig',     (v) => { compressStr(v).then((c) => this.updateURL('config', c)); dParseAndRender(); });
-      this.$watch('title',         (v) => dUpdateURL('title', v));
-      this.$watch('subtitle',      (v) => dUpdateURL('subtitle', v));
+      this.$watch('title',         (v) => { dUpdateURL('title', v); this.updatePageTitle(); });
+      this.$watch('subtitle',      (v) => { dUpdateURL('subtitle', v); this.updatePageTitle(); });
       this.$watch('mainColor',     (v) => { dUpdateURL('main',   v.replace('#', '')); dApplyTheme(); dRefreshGraphStyle(); });
       this.$watch('accentColor',   (v) => { dUpdateURL('accent', v.replace('#', '')); dApplyTheme(); dRefreshGraphStyle(); });
       this.$watch('edgeColor',     (v) => { dUpdateURL('edge',   v.replace('#', '')); dRefreshGraphStyle(); });
@@ -277,6 +278,11 @@ function depManager() {
       if (value === '' || value === null || value === undefined) url.searchParams.delete(key);
       else url.searchParams.set(key, value);
       window.history.replaceState({}, '', url);
+    },
+
+    updatePageTitle() {
+      const parts = [this.title, this.subtitle].filter(Boolean);
+      document.title = parts.length ? parts.join(' - ') : 'Deps Mesh';
     },
 
     // Ensure the browser paints the spinner before starting heavy work.
