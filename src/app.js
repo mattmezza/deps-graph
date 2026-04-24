@@ -118,6 +118,7 @@ function depManager() {
       const v = params.get('shape');
       return allowed.includes(v) ? v : 'ellipse';
     })(),
+    edgeThickness: parseInt(params.get('edgeThickness')) || 2,
     curveDistance: parseInt(params.get('curve')) || 90,
     hubSpread: params.get('hub') !== null ? parseFloat(params.get('hub')) : 3,
 
@@ -228,6 +229,7 @@ function depManager() {
       this.$watch('accentTextColor', (v) => { dUpdateURL('accentText', v.replace('#', '')); dApplyTheme(); });
       this.$watch('nodeSize',      (v) => { dUpdateURL('nodeSize', v); dNodeSizeStyle(v); });
       this.$watch('nodeShape',     (v) => { dUpdateURL('shape', v); dNodeShapeStyle(v); });
+      this.$watch('edgeThickness', (v) => { dUpdateURL('edgeThickness', v); dRefreshGraphStyle(); });
       this.$watch('fontFamily',    (v) => { localStorage.setItem('fontFamily', v); dUpdateURL('font', v); this.loadFontFamily(); });
       this.$watch('fontSize',      (v) => { localStorage.setItem('fontSize', v); dUpdateURL('fontSize', v); dRefreshGraphStyle(); });
       this.$watch('curveDistance', (v) => { dUpdateURL('curve', v); dParseAndRender(); });
@@ -461,6 +463,7 @@ function depManager() {
     // Re-apply graph styles whose colors are theme-dependent
     refreshGraphStyle() {
       if (!this.cy) return;
+      const w = parseFloat(this.edgeThickness) || 2;
       this.cy.style()
         .selector('node').style({
           'background-color': this.mainColor,
@@ -473,14 +476,22 @@ function depManager() {
           'target-arrow-color': this.edgeColor,
           'font-size': Math.max(8, this.fontSize - 2) + 'px',
           'font-family': this.fontFamilyCss(),
+          'width': w,
         })
         .selector('edge.hover').style({
           'line-color': this.accentColor,
           'target-arrow-color': this.accentColor,
+          'width': w + 2,
         })
         .selector('edge:selected').style({
           'line-color': this.accentColor,
           'target-arrow-color': this.accentColor,
+          'width': w + 3,
+        })
+        .selector('edge.hl').style({
+          'line-color': this.accentColor,
+          'target-arrow-color': this.accentColor,
+          'width': w + 3,
         })
         .update();
       this.applyEdgeRules();
@@ -623,7 +634,7 @@ function depManager() {
           {
             selector: 'edge',
             style: {
-              width: 2,
+              width: this.edgeThickness,
               'line-color': this.edgeColor,
               'target-arrow-color': this.edgeColor,
               'target-arrow-shape': 'triangle',
@@ -657,7 +668,7 @@ function depManager() {
             selector: 'edge.hover',
             style: {
               label: 'data(fullLabel)',
-              width: 4,
+              width: this.edgeThickness + 2,
               'line-color': this.accentColor,
               'target-arrow-color': this.accentColor,
               'z-index': 999,
@@ -666,7 +677,7 @@ function depManager() {
           {
             selector: 'edge:selected',
             style: {
-              width: 5,
+              width: this.edgeThickness + 3,
               'line-color': this.accentColor,
               'target-arrow-color': this.accentColor,
             },
@@ -684,7 +695,7 @@ function depManager() {
             selector: 'edge.hl',
             style: {
               label: 'data(fullLabel)',
-              width: 5,
+              width: this.edgeThickness + 3,
               'line-color': this.accentColor,
               'target-arrow-color': this.accentColor,
               'z-index': 999,
@@ -1340,12 +1351,15 @@ function depManager() {
       if (!this.shareIncludeBasicConfig) {
         url.searchParams.delete('nodeSize');
         url.searchParams.delete('shape');
+        url.searchParams.delete('edgeThickness');
         url.searchParams.delete('curve');
         url.searchParams.delete('hub');
         url.searchParams.delete('labels');
         url.searchParams.delete('font');
         url.searchParams.delete('fontSize');
       }
+      // Always open shared links on the adjacency list tab.
+      url.searchParams.delete('tab');
       await navigator.clipboard.writeText(url.toString());
       this.shareCopied = true;
       setTimeout(() => { this.shareCopied = false; }, 2000);
