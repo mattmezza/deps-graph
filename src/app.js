@@ -171,6 +171,11 @@ function depManager() {
         if (decoded) { try { this.edgeStyleRules = JSON.parse(decoded) || []; } catch (_) {} }
       }
 
+      // Strip tab from URL so copied links don't preserve it.
+      if (new URL(window.location).searchParams.has('tab')) {
+        this.updateURL('tab', '');
+      }
+
       this.applyResolvedTheme();
       this.loadFontFamily();
       // Listen for system preference changes.
@@ -235,7 +240,6 @@ function depManager() {
       this.$watch('curveDistance', (v) => { dUpdateURL('curve', v); dParseAndRender(); });
       this.$watch('hubSpread',     (v) => { dUpdateURL('hub',   v); dRunLayout(); });
       this.$watch('exportFormat',  (v) => { localStorage.setItem('exportFormat', v); });
-      this.$watch('tab',           (v) => dUpdateURL('tab', v === 'config' ? '' : v));
       this.$watch('showLabels',    (v) => dUpdateURL('labels', v ? '1' : ''));
 
       const dApplyEdgeRules = debounce(() => { this.persistEdgeRules(); this.applyEdgeRules(); }, 300);
@@ -268,6 +272,7 @@ function depManager() {
     },
 
     updateURL(key, value) {
+      if (key === 'tab') return; // never persist active tab in the URL
       const url = new URL(window.location);
       if (value === '' || value === null || value === undefined) url.searchParams.delete(key);
       else url.searchParams.set(key, value);
@@ -1358,7 +1363,7 @@ function depManager() {
         url.searchParams.delete('font');
         url.searchParams.delete('fontSize');
       }
-      // Always open shared links on the adjacency list tab.
+      // Tab is never persisted in URLs.
       url.searchParams.delete('tab');
       await navigator.clipboard.writeText(url.toString());
       this.shareCopied = true;
