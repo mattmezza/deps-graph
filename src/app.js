@@ -81,7 +81,7 @@ function depManager() {
     edgeList: [],
     nodeCount: 0,
     edgeCount: 0,
-    showLabels: params.get('labels') === '1',
+    showLabels: false,
     filterBetweenSrc: '',
     filterBetweenSink: '',
     filterBetweenActive: false,
@@ -171,10 +171,10 @@ function depManager() {
         if (decoded) { try { this.edgeStyleRules = JSON.parse(decoded) || []; } catch (_) {} }
       }
 
-      // Strip tab from URL so copied links don't preserve it.
-      if (new URL(window.location).searchParams.has('tab')) {
-        this.updateURL('tab', '');
-      }
+      // Strip tab & labels from URL so copied links don't preserve them.
+      const currentUrl = new URL(window.location);
+      if (currentUrl.searchParams.has('tab')) this.updateURL('tab', '');
+      if (currentUrl.searchParams.has('labels')) this.updateURL('labels', '');
 
       this.applyResolvedTheme();
       this.loadFontFamily();
@@ -240,7 +240,7 @@ function depManager() {
       this.$watch('curveDistance', (v) => { dUpdateURL('curve', v); dParseAndRender(); });
       this.$watch('hubSpread',     (v) => { dUpdateURL('hub',   v); dRunLayout(); });
       this.$watch('exportFormat',  (v) => { localStorage.setItem('exportFormat', v); });
-      this.$watch('showLabels',    (v) => dUpdateURL('labels', v ? '1' : ''));
+      // showLabels is intentionally NOT synced to the URL.
 
       const dApplyEdgeRules = debounce(() => { this.persistEdgeRules(); this.applyEdgeRules(); }, 300);
       const dApplyEdgeStyleRules = debounce(() => { this.persistEdgeStyleRules(); this.applyEdgeStyleRules(); }, 300);
@@ -264,7 +264,7 @@ function depManager() {
       this.$watch('showLabels', (val) => {
         if (val) this.cy.edges().addClass('visible-labels');
         else this.cy.edges().removeClass('visible-labels');
-      });
+      }, { immediate: true });
 
       // Ensure rules loaded from URL are applied after everything is ready.
       if (this.edgeRules.length) this.applyEdgeRules();
@@ -1359,7 +1359,6 @@ function depManager() {
         url.searchParams.delete('edgeThickness');
         url.searchParams.delete('curve');
         url.searchParams.delete('hub');
-        url.searchParams.delete('labels');
         url.searchParams.delete('font');
         url.searchParams.delete('fontSize');
       }
